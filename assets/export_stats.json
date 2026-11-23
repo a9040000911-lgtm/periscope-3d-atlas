@@ -1,0 +1,109 @@
+{
+  "crop_id": "sugar_beet",
+  "blender_version": "5.2.2 LTS",
+  "object_count": 55,
+  "triangle_count": 65365,
+  "glb_path": "E:\\Videos\\перископ\\assets\\sugar_beet.glb",
+  "glb_bytes": 3347504,
+  "blend_path": "E:\\Videos\\перископ\\assets\\sugar_beet.blend",
+  "fps": 24,
+  "frame_range": [
+    0,
+    150
+  ],
+  "audit_mode": "full_31_frames",
+  "audit_frames_checked": 31,
+  "leaf_overlap_pairs": [],
+  "leaf_blade_root_clipping": [],
+  "leaf_root_overlaps": [],
+  "floating_leaf_bases": [],
+  "floating_rootlet_bases": [],
+  "phase_bounds": {
+    "phase_0": {
+      "frame": 0,
+      "gltf_min": [
+        -0.06,
+        -0.2732,
+        -0.0538
+      ],
+      "gltf_max": [
+        0.0688,
+        -0.0924,
+        0.0538
+      ]
+    },
+    "phase_1": {
+      "frame": 30,
+      "gltf_min": [
+        -0.124,
+        -0.3594,
+        -0.1727
+      ],
+      "gltf_max": [
+        0.1168,
+        0.1466,
+        0.1685
+      ]
+    },
+    "phase_2": {
+      "frame": 60,
+      "gltf_min": [
+        -0.4183,
+        -0.5416,
+        -0.2787
+      ],
+      "gltf_max": [
+        0.4602,
+        0.1929,
+        0.3103
+      ]
+    },
+    "phase_3": {
+      "frame": 90,
+      "gltf_min": [
+        -0.5142,
+        -0.7156,
+        -0.5079
+      ],
+      "gltf_max": [
+        0.4685,
+        0.3881,
+        0.457
+      ]
+    },
+    "phase_4": {
+      "frame": 120,
+      "gltf_min": [
+        -0.5259,
+        -0.828,
+        -0.517
+      ],
+      "gltf_max": [
+        0.4837,
+        0.5322,
+        0.5158
+      ]
+    },
+    "phase_5": {
+      "frame": 150,
+      "gltf_min": [
+        -0.5362,
+        -0.8876,
+        -0.5247
+      ],
+      "gltf_max": [
+        0.4993,
+        0.5675,
+        0.5279
+      ]
+    }
+  },
+  "renders": [
+    "E:\\Videos\\перископ\\renders\\phase_0.png",
+    "E:\\Videos\\перископ\\renders\\phase_1.png",
+    "E:\\Videos\\перископ\\renders\\phase_2.png",
+    "E:\\Videos\\перископ\\renders\\phase_3.png",
+    "E:\\Videos\\перископ\\renders\\phase_4.png",
+    "E:\\Videos\\перископ\\renders\\phase_5.png"
+  ]
+}

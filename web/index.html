@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Перископ — 3D-атлас фаз роста: Сахарная свекла</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js",
+        "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js",
+        "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.tsl.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="periscope-app">
+    <!-- Full-bleed atmospheric field & subsoil backdrop (no 3D dirt block) -->
+    <div class="field-backdrop" id="field-backdrop" aria-hidden="true">
+      <div class="sky-layer"></div>
+      <div class="horizon-band" id="horizon-band">
+        <svg class="horizon-svg" viewBox="0 0 1600 220" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="distantField" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6e8c54" />
+              <stop offset="45%" stop-color="#4e7e28" />
+              <stop offset="100%" stop-color="#355d17" />
+            </linearGradient>
+            <linearGradient id="soilEdge" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2a1d13" stop-opacity="0.72" />
+              <stop offset="40%" stop-color="#1b130d" stop-opacity="0.96" />
+              <stop offset="100%" stop-color="#140e09" stop-opacity="1" />
+            </linearGradient>
+            <filter id="horizonBokeh" x="-2%" y="-10%" width="104%" height="120%">
+              <feGaussianBlur stdDeviation="1.3" />
+            </filter>
+          </defs>
+          <!-- Soft distant treeline silhouette with optical depth-of-field blur -->
+          <path
+            d="M0,76 C120,62 210,72 310,64 C420,56 540,70 670,63 C810,55 960,68 1110,58 C1260,50 1420,66 1600,58 L1600,115 L0,115 Z"
+            fill="#476643"
+            opacity="0.72"
+            filter="url(#horizonBokeh)"
+          />
+          <!-- Green crop field strip -->
+          <path
+            d="M0,96 Q420,86 840,94 T1600,90 L1600,154 L0,154 Z"
+            fill="url(#distantField)"
+          />
+          <!-- Subsoil cut line matching root collar -->
+          <path
+            d="M0,146 Q400,140 800,147 T1600,143 L1600,220 L0,220 Z"
+            fill="url(#soilEdge)"
+          />
+        </svg>
+      </div>
+      <div class="subsoil-layer" id="subsoil-layer"></div>
+      <div class="soil-contact-shadow" id="soil-contact-shadow"></div>
+    </div>
+
+    <!-- Top compact bar -->
+    <header class="topbar">
+      <div class="brand-group">
+        <div class="brand-mark" aria-hidden="true">П</div>
+        <div>
+          <h1 class="brand-title">ПЕРИСКОП</h1>
+          <p class="brand-subtitle">Интерактивный 3D-гид фаз развития и защиты культур</p>
+        </div>
+      </div>
+
+      <div class="crop-badge">
+        <span class="crop-dot" aria-hidden="true"></span>
+        <select id="crop-select" class="crop-select" aria-label="Выбор сельскохозяйственной культуры" hidden></select>
+        <span class="crop-name" id="crop-name">Сахарная свекла</span>
+        <span class="crop-latin" id="crop-latin">Beta vulgaris subsp. vulgaris</span>
+      </div>
+
+      <div class="telemetry-pill" id="telemetry-pill" aria-live="polite">
+        <span id="stat-size">Загрузка GLB…</span>
+        <span class="sep">·</span>
+        <span id="stat-tris">—</span>
+        <span class="sep">·</span>
+        <span id="stat-fps">— FPS</span>
+        <span class="sep">·</span>
+        <span class="bbch-live" id="stat-bbch">BBCH 00–05</span>
+      </div>
+    </header>
+
+    <!-- Main split-screen layout matching Periscope reference -->
+    <main class="workspace">
+      <section class="stage-column" aria-label="3D-модель культуры">
+        <div class="stage-card" id="stage-container">
+          <!-- Concentric radar reticle behind/around the floating plant -->
+          <svg class="periscope-reticle" viewBox="0 0 800 800" aria-hidden="true">
+            <circle cx="400" cy="400" r="145" />
+            <circle cx="400" cy="400" r="245" />
+            <circle cx="400" cy="400" r="345" stroke-dasharray="4 6" />
+            <circle class="orb-dot" cx="400" cy="155" r="4.5" />
+            <circle class="orb-dot" cx="612" cy="278" r="4.5" />
+            <circle class="orb-dot" cx="612" cy="522" r="4.5" />
+            <circle class="orb-dot" cx="400" cy="645" r="4.5" />
+            <circle class="orb-dot" cx="188" cy="522" r="4.5" />
+            <circle class="orb-dot" cx="188" cy="278" r="4.5" />
+            <circle class="orb-dot dim" cx="298" cy="70" r="3.5" />
+            <circle class="orb-dot dim" cx="725" cy="390" r="3.5" />
+            <circle class="orb-dot dim" cx="120" cy="430" r="3.5" />
+          </svg>
+
+          <canvas id="viewport-canvas"></canvas>
+
+          <div class="stage-controls-top">
+            <div class="preset-bar" role="group" aria-label="Ракурсы камеры">
+              <button type="button" class="pill-btn is-active" data-preset="overview">Общий вид</button>
+              <button type="button" class="pill-btn" data-preset="root">Корнеплод</button>
+              <button type="button" class="pill-btn" data-preset="canopy">Листья</button>
+            </div>
+            <div class="toggle-group">
+              <button type="button" class="pill-btn toggle-btn is-active" id="toggle-symptoms" aria-pressed="true">
+                Симптомы 3D: Вкл
+              </button>
+              <button type="button" class="pill-btn toggle-btn is-active" id="toggle-hotspots" aria-pressed="true">
+                Радар угроз: Вкл
+              </button>
+            </div>
+          </div>
+
+          <div class="hotspots-layer" id="hotspots-layer" aria-label="3D-метки угроз на растении"></div>
+
+          <!-- Green highlight banner style readout + timeline floating cleanly at bottom -->
+          <div class="timeline-dock" aria-label="Шкала фаз роста">
+            <div class="timeline-top">
+              <div class="playback-controls">
+                <button type="button" class="nav-btn" id="btn-prev" title="Предыдущая фаза">← Назад</button>
+                <button type="button" class="nav-btn primary" id="btn-autoplay">▶ Авто-рост</button>
+                <button type="button" class="nav-btn" id="btn-next" title="Следующая фаза">Вперёд →</button>
+              </div>
+              <div class="timeline-readout">
+                <span class="phase-tag-inline" id="readout-bbch">BBCH 00–05</span>
+                <span id="readout-phase">Фаза 1 из 6</span>
+                <span class="sep">·</span>
+                <span id="readout-frame">Кадр 0 / 150</span>
+              </div>
+            </div>
+
+            <div class="slider-wrap">
+              <label for="phase-slider" class="sr-only">Шкала фаз роста и созревания от семени до спелости</label>
+              <input
+                id="phase-slider"
+                type="range"
+                min="0"
+                max="100"
+                step="0.2"
+                value="0"
+                aria-valuetext="BBCH 00–05 — Семя и прорастание"
+              />
+            </div>
+
+            <div class="stage-hint">Вращайте на 360° зажатой кнопкой мыши · Колёсико — масштаб</div>
+          </div>
+
+          <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner" aria-hidden="true"></div>
+            <div id="loading-text">Загружаем PBR-модель сахарной свеклы…</div>
+          </div>
+
+          <div class="error-banner" id="error-banner" hidden role="alert"></div>
+        </div>
+      </section>
+
+      <!-- Right translucent slate BBCH matrix & threats drawer (Periscope style) -->
+      <aside class="info-column" id="info-panel" aria-label="Фазы развития и угрозы">
+        <div class="bbch-rail" id="phase-buttons" role="tablist" aria-label="Шкала фаз развития BBCH"></div>
+
+        <div class="phase-details-pane">
+          <div class="phase-header-card">
+            <div class="phase-meta-row">
+              <span class="bbch-badge" id="phase-bbch">BBCH 00–05</span>
+              <span class="maturity-pill" id="maturity-label">Набухание и старт корешка</span>
+            </div>
+            <h2 class="phase-title" id="phase-title">Семя и прорастание</h2>
+            <p class="phase-summary" id="phase-summary"></p>
+
+            <!-- Live maturation indicators -->
+            <div class="metrics-grid" aria-label="Динамика созревания">
+              <div class="metric-box">
+                <span class="metric-label" id="metric-label-0">Сахаристость</span>
+                <span class="metric-val" id="metric-brix">0.0%</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label" id="metric-label-1">Диаметр корня</span>
+                <span class="metric-val" id="metric-diam">4 мм</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label" id="metric-label-2">Листьев</span>
+                <span class="metric-val" id="metric-leaves">0 шт</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="threats-section">
+            <div class="threats-header">
+              <h3>Вредители и болезни в фазе</h3>
+              <span class="threat-count" id="threat-count">0</span>
+            </div>
+            <div class="threats-list" id="threats-list"></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

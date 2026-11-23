@@ -1,0 +1,50 @@
+{
+  "default_crop": "sugar_beet",
+  "crops": [
+    {
+      "id": "sugar_beet",
+      "name": "Сахарная свекла",
+      "latin": "Beta vulgaris subsp. vulgaris",
+      "archetype": "root_crop",
+      "passport_url": "../data/sugar_beet.json",
+      "stats_url": "../assets/export_stats.json",
+      "ready": true
+    },
+    {
+      "id": "winter_wheat",
+      "name": "Озимая пшеница",
+      "latin": "Triticum aestivum",
+      "archetype": "cereal_grass",
+      "passport_url": "../data/winter_wheat.json",
+      "stats_url": "../assets/winter_wheat_stats.json",
+      "ready": false
+    },
+    {
+      "id": "corn",
+      "name": "Кукуруза",
+      "latin": "Zea mays",
+      "archetype": "tall_row_grass",
+      "passport_url": "../data/corn.json",
+      "stats_url": "../assets/corn_stats.json",
+      "ready": false
+    },
+    {
+      "id": "sunflower",
+      "name": "Подсолнечник",
+      "latin": "Helianthus annuus",
+      "archetype": "broadleaf_oilseed",
+      "passport_url": "../data/sunflower.json",
+      "stats_url": "../assets/sunflower_stats.json",
+      "ready": false
+    },
+    {
+      "id": "rapeseed",
+      "name": "Рапс озимый",
+      "latin": "Brassica napus",
+      "archetype": "broadleaf_oilseed",
+      "passport_url": "../data/rapeseed.json",
+      "stats_url": "../assets/rapeseed_stats.json",
+      "ready": false
+    }
+  ]
+}

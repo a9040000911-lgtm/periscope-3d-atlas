@@ -1,0 +1,191 @@
+{
+  "crop_id": "crop_slug_example",
+  "name": "Название культуры",
+  "latin": "Genus species",
+  "archetype": "root_crop",
+  "model_url": "../assets/crop_slug_example.glb",
+  "fps": 24,
+  "total_frames": 150,
+  "duration_sec": 6.25,
+  "metric_defs": [
+    { "key": "brix_pct", "label": "Сахаристость", "unit": "%", "decimals": 1 },
+    { "key": "root_diam_mm", "label": "Диаметр корня", "unit": " мм", "decimals": 0 },
+    { "key": "leaves_count", "label": "Листьев", "unit": " шт", "decimals": 0 }
+  ],
+  "phases": [
+    {
+      "id": "phase_0",
+      "index": 0,
+      "bbch": "BBCH 00–05",
+      "title": "Семя и прорастание",
+      "short_label": "Семя",
+      "frame": 0,
+      "time_sec": 0.0,
+      "metrics": {
+        "brix_pct": 0.0,
+        "root_diam_mm": 4,
+        "leaves_count": 0,
+        "maturity_label": "Набухание и старт корешка"
+      },
+      "summary": "Описание биологических изменений и ключевых рисков на стартовой фазе.",
+      "threats": [
+        {
+          "id": "seed_rot",
+          "icon_type": "fungus",
+          "name": "Почвенная инфекция всходов",
+          "latin": "Pathogen spp.",
+          "severity": "critical",
+          "target_zone": "Семя и зародышевый корешок",
+          "description": "Краткое описание симптомов и механизма вредоносности.",
+          "protection_tip": "Рекомендуемая агротехническая и фунгицидная защита.",
+          "anchor": [-0.04, -0.16, 0.03]
+        }
+      ]
+    },
+    {
+      "id": "phase_1",
+      "index": 1,
+      "bbch": "BBCH 09–10",
+      "title": "Всходы",
+      "short_label": "Всходы",
+      "frame": 30,
+      "time_sec": 1.25,
+      "metrics": {
+        "brix_pct": 0.5,
+        "root_diam_mm": 6,
+        "leaves_count": 2,
+        "maturity_label": "Выход проростка"
+      },
+      "summary": "Описание фазы появления всходов.",
+      "threats": [
+        {
+          "id": "seedling_pest",
+          "icon_type": "beetle",
+          "name": "Вредитель всходов",
+          "latin": "Pest species",
+          "severity": "critical",
+          "target_zone": "Первые листья и точка роста",
+          "description": "Описание повреждений на фазе всходов.",
+          "protection_tip": "Краевые обработки и мониторинг ЭПВ.",
+          "anchor": [0.14, 0.12, 0.02]
+        }
+      ]
+    },
+    {
+      "id": "phase_2",
+      "index": 2,
+      "bbch": "BBCH 12–14",
+      "title": "Первые настоящие листья",
+      "short_label": "2–4 листа",
+      "frame": 60,
+      "time_sec": 2.5,
+      "metrics": {
+        "brix_pct": 1.5,
+        "root_diam_mm": 12,
+        "leaves_count": 4,
+        "maturity_label": "Закладка корневой системы"
+      },
+      "summary": "Описание ранней вегетативной фазы.",
+      "threats": [
+        {
+          "id": "early_weed",
+          "icon_type": "weed",
+          "name": "Сорные растения",
+          "latin": "Weed complex",
+          "severity": "high",
+          "target_zone": "Междурядья и прикорневая зона",
+          "description": "Конкуренция за влагу, свет и питание.",
+          "protection_tip": "Гербицидная обработка в оптимальную фазу сорняков.",
+          "anchor": [-0.20, 0.04, 0.05]
+        }
+      ]
+    },
+    {
+      "id": "phase_3",
+      "index": 3,
+      "bbch": "BBCH 19–31",
+      "title": "Активный вегетативный рост",
+      "short_label": "Рост",
+      "frame": 90,
+      "time_sec": 3.75,
+      "metrics": {
+        "brix_pct": 4.0,
+        "root_diam_mm": 25,
+        "leaves_count": 8,
+        "maturity_label": "Формирование листового аппарата"
+      },
+      "summary": "Описание активного роста надземной и подземной массы.",
+      "threats": [
+        {
+          "id": "sap_sucker",
+          "icon_type": "aphid",
+          "name": "Сосущие вредители",
+          "latin": "Aphididae spp.",
+          "severity": "high",
+          "target_zone": "Молодые листья и точка роста",
+          "description": "Угнетение роста и перенос вирусных инфекций.",
+          "protection_tip": "Системные инсектициды при достижении ЭПВ.",
+          "anchor": [0.16, 0.28, 0.06]
+        }
+      ]
+    },
+    {
+      "id": "phase_4",
+      "index": 4,
+      "bbch": "BBCH 39–65",
+      "title": "Формирование продуктивных органов",
+      "short_label": "Налив",
+      "frame": 120,
+      "time_sec": 5.0,
+      "metrics": {
+        "brix_pct": 10.0,
+        "root_diam_mm": 55,
+        "leaves_count": 14,
+        "maturity_label": "Активный налив урожая"
+      },
+      "summary": "Описание критической фазы формирования урожая.",
+      "threats": [
+        {
+          "id": "leaf_spot",
+          "icon_type": "fungus",
+          "name": "Листовая пятнистость",
+          "latin": "Fungal pathogen",
+          "severity": "critical",
+          "target_zone": "Зрелые и верхние листья",
+          "description": "Снижение площади фотосинтеза и качества урожая.",
+          "protection_tip": "Профилактическая фунгицидная защита.",
+          "anchor": [-0.28, 0.34, 0.08]
+        }
+      ]
+    },
+    {
+      "id": "phase_5",
+      "index": 5,
+      "bbch": "BBCH 85–89",
+      "title": "Технологическая зрелость",
+      "short_label": "Зрелость",
+      "frame": 150,
+      "time_sec": 6.25,
+      "metrics": {
+        "brix_pct": 17.0,
+        "root_diam_mm": 90,
+        "leaves_count": 18,
+        "maturity_label": "Готовность к уборке"
+      },
+      "summary": "Описание финальной фазы созревания и уборки.",
+      "threats": [
+        {
+          "id": "late_rot",
+          "icon_type": "fungus",
+          "name": "Гнили созревания",
+          "latin": "Storage/Late rot complex",
+          "severity": "high",
+          "target_zone": "Продуктивный орган перед уборкой",
+          "description": "Снижение сохранности и товарного качества урожая.",
+          "protection_tip": "Своевременная уборка и контроль влажности.",
+          "anchor": [0.08, -0.32, 0.14]
+        }
+      ]
+    }
+  ]
+}

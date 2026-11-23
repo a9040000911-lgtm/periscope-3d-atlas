@@ -1,0 +1,346 @@
+{
+  "crop_id": "sugar_beet",
+  "name": "Сахарная свекла",
+  "latin": "Beta vulgaris subsp. vulgaris",
+  "archetype": "root_crop",
+  "model_url": "../assets/sugar_beet.glb",
+  "fps": 24,
+  "total_frames": 150,
+  "duration_sec": 6.25,
+  "metric_defs": [
+    { "key": "brix_pct", "label": "Сахаристость", "unit": "%", "decimals": 1 },
+    { "key": "root_diam_mm", "label": "Диаметр корня", "unit": " мм", "decimals": 0 },
+    { "key": "leaves_count", "label": "Листьев", "unit": " шт", "decimals": 0 }
+  ],
+  "phases": [
+    {
+      "id": "phase_0",
+      "index": 0,
+      "bbch": "BBCH 00–05",
+      "title": "Семя и прорастание",
+      "short_label": "Семя",
+      "frame": 0,
+      "time_sec": 0.0,
+      "metrics": {
+        "brix_pct": 0.0,
+        "root_diam_mm": 4,
+        "leaves_count": 0,
+        "maturity_label": "Набухание и старт корешка"
+      },
+      "summary": "Дражированное семя набухает, оболочка растрескивается, и наружу пробивается зародышевый корешок. Культура критически уязвима для почвенных грибов и личинок.",
+      "threats": [
+        {
+          "id": "korneed_seed",
+          "icon_type": "fungus",
+          "name": "Корнеед всходов",
+          "latin": "Pythium / Aphanomyces / Phoma",
+          "severity": "critical",
+          "target_zone": "Первичный корешок и оболочка семени",
+          "description": "Почвенный комплекс патогенов поражает проросток до выхода на поверхность, вызывая потемнение и перетяжку корешка.",
+          "protection_tip": "Фунгицидная обработка драже, посев в прогретую (+6…+8 °C) рыхлую почву без заплывания корки.",
+          "anchor": [-0.03, -0.15, 0.03],
+          "symptom": {
+            "mode": "rhizoctonia_rot",
+            "target": "root",
+            "radius": 0.14,
+            "cam_offset": [0.22, 0.06, 0.95]
+          }
+        },
+        {
+          "id": "wireworm",
+          "icon_type": "worm",
+          "name": "Проволочник",
+          "latin": "Elateridae spp.",
+          "severity": "high",
+          "target_zone": "Набухающее семя и зародышевый корешок",
+          "description": "Личинки жуков-щелкунов выедают набухшие семена и перегрызают молодой корешок под землёй, изреживая всходы.",
+          "protection_tip": "Инсектицидный протравитель семян (неоникотиноиды / фипронил), контроль пырея в севообороте.",
+          "anchor": [0.06, -0.22, 0.02],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "root",
+            "radius": 0.14,
+            "cam_offset": [0.26, -0.02, 0.95]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_1",
+      "index": 1,
+      "bbch": "BBCH 09–10",
+      "title": "Всходы («вилочка»)",
+      "short_label": "Вилочка",
+      "frame": 30,
+      "time_sec": 1.25,
+      "metrics": {
+        "brix_pct": 1.2,
+        "root_diam_mm": 8,
+        "leaves_count": 2,
+        "maturity_label": "Раскрытие семядолей"
+      },
+      "summary": "Розовый гипокотиль выносит на поверхность две глянцевые семядоли («вилочка»). Максимально опасная фаза: повреждение семядолей ведёт к полной гибели всходов.",
+      "threats": [
+        {
+          "id": "flea_beetle",
+          "icon_type": "beetle",
+          "name": "Свекловичная блошка",
+          "latin": "Chaetocnema concinna",
+          "severity": "critical",
+          "target_zone": "Семядольные листья и точка роста",
+          "description": "Мелкие прыгающие жуки выгрызают сквозные язвочки на семядолях; в сухую тёплую погоду могут уничтожить всходы за 1–2 дня.",
+          "protection_tip": "Мониторинг краевых полос поля, срочная инсектицидная обработка при превышении ЭПВ.",
+          "anchor": [0.14, 0.14, 0.02],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "leaf",
+            "radius": 0.16,
+            "cam_offset": [0.34, 0.22, 0.92]
+          }
+        },
+        {
+          "id": "beet_weevil",
+          "icon_type": "beetle",
+          "name": "Свекловичный долгоносик",
+          "latin": "Asproparthenis punctiventris",
+          "severity": "critical",
+          "target_zone": "Семядоли и гипокотиль",
+          "description": "Жуки перекусывают нежный стебелёк у самой поверхности почвы и объедают семядоли.",
+          "protection_tip": "Краевые барьерные обработки, пиретроидно-фосфорорганические баковые смеси в вечерние часы.",
+          "anchor": [-0.14, 0.10, 0.02],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "both",
+            "radius": 0.16,
+            "cam_offset": [-0.36, 0.18, 0.92]
+          }
+        },
+        {
+          "id": "korneed_emergence",
+          "icon_type": "fungus",
+          "name": "Корнеед всходов",
+          "latin": "Комплекс почвенных грибов",
+          "severity": "high",
+          "target_zone": "Подсемядольное колено",
+          "description": "Образуется характерная чёрная перетяжка на гипокотиле; проросток полегает и усыхает при перепадах влажности.",
+          "protection_tip": "Рыхление почвенной корки для доступа кислорода к корневой шейке.",
+          "anchor": [0.02, -0.09, 0.04],
+          "symptom": {
+            "mode": "rhizoctonia_rot",
+            "target": "root",
+            "radius": 0.13,
+            "cam_offset": [0.24, 0.04, 0.95]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_2",
+      "index": 2,
+      "bbch": "BBCH 12–14",
+      "title": "2–4 настоящих листа",
+      "short_label": "2–4 листа",
+      "frame": 60,
+      "time_sec": 2.5,
+      "metrics": {
+        "brix_pct": 3.8,
+        "root_diam_mm": 24,
+        "leaves_count": 4,
+        "maturity_label": "Закладка корнеплода"
+      },
+      "summary": "Разворачиваются первые две пары настоящих листьев с волнистым краем, корнеплод уходит вглубь и выпускает боковые корешки. Открыто гербицидное окно.",
+      "threats": [
+        {
+          "id": "beet_fly",
+          "icon_type": "moth",
+          "name": "Минирующая муха",
+          "latin": "Pegomya hyoscyami",
+          "severity": "high",
+          "target_zone": "Пластинки первой пары листьев",
+          "description": "Личинки внедряются внутрь листа и выедают паренхиму, образуя светлые вздутые мины и снижая фотосинтез.",
+          "protection_tip": "Применение системных инсектицидов при заселении 15–20% растений с появлением первых мин.",
+          "anchor": [0.24, 0.19, 0.06],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "leaf",
+            "radius": 0.20,
+            "cam_offset": [0.42, 0.34, 1.05]
+          }
+        },
+        {
+          "id": "weeds_window",
+          "icon_type": "weed",
+          "name": "Сорняки (гербицидное окно)",
+          "latin": "Chenopodium / Amaranthus",
+          "severity": "critical",
+          "target_zone": "Прикорневая зона и свет",
+          "description": "Молодая свекла медленно закрывает междурядья и критически теряет урожайность при задержке с гербицидной обработкой.",
+          "protection_tip": "Дробная схема бетанальных гербицидов (2–3 волны по семядолям сорняков) + противозлаковый контроль.",
+          "anchor": [-0.26, 0.04, 0.14],
+          "symptom": {
+            "mode": "none",
+            "target": "both",
+            "radius": 0.16,
+            "cam_offset": [-0.36, 0.24, 1.38]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_3",
+      "index": 3,
+      "bbch": "BBCH 16–19",
+      "title": "6–8+ листьев (розетка)",
+      "short_label": "Розетка",
+      "frame": 90,
+      "time_sec": 3.75,
+      "metrics": {
+        "brix_pct": 8.4,
+        "root_diam_mm": 52,
+        "leaves_count": 11,
+        "maturity_label": "Рост розетки и утолщение"
+      },
+      "summary": "Формируется спиральная розетка упругих листьев; корнеплод активно утолщается, а из сахарных бороздок развивается густая сеть боковых мочек.",
+      "threats": [
+        {
+          "id": "black_bean_aphid",
+          "icon_type": "aphid",
+          "name": "Свекловичная тля",
+          "latin": "Aphis fabae",
+          "severity": "high",
+          "target_zone": "Молодые центральные листья",
+          "description": "Колонии высасывают клеточный сок, скручивают листья и переносят опасную вирусную желтуху свеклы.",
+          "protection_tip": "Системные или трансламинарные афициды при заселении краёв поля свыше 10% растений.",
+          "anchor": [0.06, 0.34, 0.08],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "leaf",
+            "radius": 0.24,
+            "cam_offset": [0.34, 0.56, 1.12]
+          }
+        },
+        {
+          "id": "webworm_cutworm",
+          "icon_type": "moth",
+          "name": "Луговой мотылёк и совки",
+          "latin": "Loxostege / Noctuidae",
+          "severity": "critical",
+          "target_zone": "Розетка и прикорневая шейка",
+          "description": "Гусеницы скелетируют листья, а подгрызающие совки повреждают головку корнеплода у поверхности почвы.",
+          "protection_tip": "Учёт лёта бабочек на феромонные ловушки, обработка по младшим возрастам гусениц.",
+          "anchor": [-0.28, 0.24, 0.12],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "both",
+            "radius": 0.26,
+            "cam_offset": [-0.52, 0.34, 1.24]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_4",
+      "index": 4,
+      "bbch": "BBCH 31–39",
+      "title": "Смыкание рядков",
+      "short_label": "Смыкание",
+      "frame": 120,
+      "time_sec": 5.0,
+      "metrics": {
+        "brix_pct": 13.6,
+        "root_diam_mm": 86,
+        "leaves_count": 18,
+        "maturity_label": "Пик фотосинтеза и налив"
+      },
+      "summary": "Листовой полог перекрывает до 90% междурядий; закладывается основная сахаристость, но в плотном микроклимате возрастает риск пятнистостей.",
+      "threats": [
+        {
+          "id": "cercospora",
+          "icon_type": "fungus",
+          "name": "Церкоспороз",
+          "latin": "Cercospora beticola",
+          "severity": "critical",
+          "target_zone": "Средний и нижний ярус листьев",
+          "description": "Мелкие бурые пятна с красно-бурой каймой сливаются и вызывают отмирание ботвы; повторное отрастание листьев резко снижает сахар.",
+          "protection_tip": "Профилактический и лечебный фунгицидный блок (триазолы + стробилурины / медьсодержащие) при первых единичных пятнах.",
+          "anchor": [0.35, 0.34, 0.18],
+          "symptom": {
+            "mode": "cercospora_spots",
+            "target": "leaf",
+            "radius": 0.36,
+            "cam_offset": [0.56, 0.50, 1.18]
+          }
+        },
+        {
+          "id": "powdery_mildew",
+          "icon_type": "fungus",
+          "name": "Мучнистая роса",
+          "latin": "Erysiphe betae",
+          "severity": "medium",
+          "target_zone": "Верхняя сторона взрослых листьев",
+          "description": "Беловатый паутинистый налёт нарушает испарение и фотосинтез, ускоряя старение листового аппарата в сухую жару.",
+          "protection_tip": "Фунгицидная защита в составе первой-второй обработки против комплекса пятнистостей.",
+          "anchor": [-0.33, 0.42, 0.12],
+          "symptom": {
+            "mode": "powdery_mildew",
+            "target": "leaf",
+            "radius": 0.38,
+            "cam_offset": [-0.54, 0.54, 1.18]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_5",
+      "index": 5,
+      "bbch": "BBCH 49",
+      "title": "Техническая спелость",
+      "short_label": "Спелость",
+      "frame": 150,
+      "time_sec": 6.25,
+      "metrics": {
+        "brix_pct": 18.2,
+        "root_diam_mm": 115,
+        "leaves_count": 24,
+        "maturity_label": "Накопление сахарозы, пожелтение нижних листьев"
+      },
+      "summary": "Конический корнеплод набрал максимальную массу и сахаристость, головка вышла над поверхностью, а старые нижние листья желтеют и полегают при созревании.",
+      "threats": [
+        {
+          "id": "rhizoctonia",
+          "icon_type": "fungus",
+          "name": "Ризоктониоз (бурая гниль)",
+          "latin": "Rhizoctonia solani",
+          "severity": "critical",
+          "target_zone": "Ткани созревающего корнеплода",
+          "description": "Тёмно-бурые вдавленные очаги и трещины ткани на корнеплоде приводят к выпадам в поле и загниванию кагатов.",
+          "protection_tip": "Устойчивые гибриды, недопущение переуплотнения почвы, прикорневые обработки в ранние фазы и раздельная уборка очагов.",
+          "anchor": [0.11, -0.24, 0.16],
+          "symptom": {
+            "mode": "rhizoctonia_rot",
+            "target": "root",
+            "radius": 0.24,
+            "cam_offset": [0.34, 0.04, 1.24]
+          }
+        },
+        {
+          "id": "phoma_rot",
+          "icon_type": "fungus",
+          "name": "Фомоз и кагатная гниль",
+          "latin": "Phoma betae / Botrytis",
+          "severity": "high",
+          "target_zone": "Головка и хвостовая часть корня",
+          "description": "Чёрная сухая гниль сердца и хвостовой части резко снижает выход сахара и провоцирует порчу сырья при хранении.",
+          "protection_tip": "Борные подкормки в вегетацию, минимизация травм корнеплода при копке и корректное вентилирование кагатов.",
+          "anchor": [-0.07, -0.52, 0.09],
+          "symptom": {
+            "mode": "phoma_rings",
+            "target": "root",
+            "radius": 0.22,
+            "cam_offset": [-0.30, -0.04, 1.24]
+          }
+        }
+      ]
+    }
+  ]
+}

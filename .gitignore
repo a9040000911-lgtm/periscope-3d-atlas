@@ -1,0 +1,21 @@
+# Heavy Blender working files (regenerated via blender/generate_sugar_beet.py)
+assets/*.blend
+assets/*.blend1
+
+# Raw 2K source PBR PNGs (already packed as WebP q=95 inside assets/sugar_beet.glb)
+# Keep runtime web assets: leaf_thickness.png, root_thickness.png, *.hdr, hdri_meta.json
+assets/textures/*_albedo.png
+assets/textures/*_normal.png
+assets/textures/*_roughness.png
+
+# Local Blender EEVEE dev renders & internal reference videos
+renders/
+*.webm
+*.mp4
+
+# Python & OS caches
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+Thumbs.db
