@@ -82,38 +82,15 @@ body {
   top: calc(var(--soil-line-y) + 52px);
   bottom: 0;
   background:
-    radial-gradient(
-      ellipse 34% 62% at var(--plant-center-x) 24%,
-      rgba(74, 52, 34, 0.34) 0%,
-      rgba(36, 25, 17, 0.16) 46%,
-      rgba(13, 9, 6, 0) 76%
-    ),
     repeating-linear-gradient(
       180deg,
-      rgba(255, 224, 186, 0.018) 0px,
-      rgba(255, 224, 186, 0.018) 2px,
+      rgba(255, 224, 186, 0.016) 0px,
+      rgba(255, 224, 186, 0.016) 2px,
       rgba(0, 0, 0, 0) 2px,
       rgba(0, 0, 0, 0) 28px
     ),
-    linear-gradient(180deg, #1b130d 0%, #130d08 42%, #0c0805 100%);
+    linear-gradient(180deg, #19120c 0%, #130d08 45%, #0c0805 100%);
   transition: top 0.08s linear;
-}
-
-.soil-contact-shadow {
-  position: absolute;
-  left: var(--plant-center-x);
-  top: calc(var(--soil-line-y) + 4px);
-  width: min(360px, 34vw);
-  height: 54px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(
-    ellipse 52% 48% at 50% 50%,
-    rgba(6, 4, 2, 0.78) 0%,
-    rgba(10, 7, 4, 0.44) 48%,
-    rgba(10, 7, 4, 0) 100%
-  );
-  filter: blur(5px);
-  transition: top 0.08s linear, left 0.08s linear;
 }
 
 /* Top header bar */
