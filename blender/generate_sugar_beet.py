@@ -1371,12 +1371,12 @@ def collect_stats_and_export(
         export_apply=False,
         export_texcoords=True,
         export_normals=True,
-        export_tangents=True,
+        export_tangents=False,
         export_vertex_color="ACTIVE",
         export_vertex_color_name="Color",
         export_materials="EXPORT",
         export_image_format="WEBP",
-        export_image_quality=95,
+        export_image_quality=88,
         export_image_webp_fallback=False,
         export_animations=True,
         export_animation_mode="SCENE",
@@ -1386,9 +1386,7 @@ def collect_stats_and_export(
         export_morph=True,
         export_morph_normal=False,
         export_morph_animation=True,
-        export_draco_mesh_compression_enable=True,
-        export_draco_mesh_compression_level=6,
-        export_draco_color_quantization=10,
+        export_draco_mesh_compression_enable=False,
     )
 
     total_tris = 0

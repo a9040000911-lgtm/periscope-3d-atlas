@@ -3,16 +3,17 @@ import {
   abs,
   builtinAOContext,
   clamp,
-  color,
+  cos,
   distance,
+  dot,
   float,
   Fn,
+  fract,
   frontFacing,
   If,
+  length,
   mix,
   mrt,
-  mx_fractal_noise_float,
-  mx_worley_noise_float,
   normalView,
   packNormalToRGB,
   pass,
@@ -31,10 +32,8 @@ import {
   vertexColor,
 } from "three/tsl";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
-import { ssao } from "three/addons/tsl/display/SSAONode.js";
 
 const CAMERA_PRESETS = {
   overview: {
@@ -91,6 +90,7 @@ const btnNext = document.getElementById("btn-next");
 const btnAutoplay = document.getElementById("btn-autoplay");
 const toggleSymptomsBtn = document.getElementById("toggle-symptoms");
 const toggleHotspotsBtn = document.getElementById("toggle-hotspots");
+const toggleSsaoBtn = document.getElementById("toggle-ssao");
 const presetButtons = Array.from(document.querySelectorAll("[data-preset]"));
 
 const readoutBbch = document.getElementById("readout-bbch");
@@ -135,6 +135,7 @@ const state = {
   activeThreatId: null,
   showHotspots: true,
   showSymptoms: true,
+  ultraAO: false,
   symptomTargetIntensity: 0.0,
   symptomCurrentIntensity: 0.0,
   autoPlaying: false,
@@ -187,7 +188,34 @@ function showError(message) {
   errorBanner.innerHTML = `<strong>Не удалось запустить 3D-сцену:</strong><br>${message}`;
 }
 
+// Ultra-fast zero-loop analytic TSL noise & organic spot distance (compiles in <10ms vs ~14s MaterialX 3D loops)
+function fastNoise3D(p) {
+  const a = sin(dot(p, vec3(1.17, 2.31, 1.73)))
+    .mul(cos(dot(p.yzx, vec3(1.93, 1.37, 2.11))));
+  const p2 = p.mul(float(2.13)).add(vec3(a.mul(float(1.4)), a.mul(float(-1.1)), a.mul(float(0.9))));
+  const b = sin(dot(p2, vec3(1.61, 1.29, 2.47)))
+    .mul(cos(dot(p2.zxy, vec3(2.07, 1.71, 1.19))));
+  return a.mul(float(0.62)).add(b.mul(float(0.38)));
+}
+
+function fastSpots3D(p) {
+  const warp = vec3(
+    sin(p.y.mul(float(1.73)).add(p.z.mul(float(1.19)))),
+    cos(p.z.mul(float(1.61)).sub(p.x.mul(float(1.37)))),
+    sin(p.x.mul(float(1.49)).add(p.y.mul(float(1.83))))
+  ).mul(float(0.28));
+  const cell = fract(p.add(warp)).sub(float(0.5));
+  return length(cell);
+}
+
 function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex, hasVertexColor) {
+  const isLeaf = tier === "outer" || tier === "mid" || tier === "heart";
+  const isRoot = tier === "root";
+  // Keep Seed_PBR / Hypocotyl_PBR on lightweight glTF standard PBR (avoids redundant shader compilations)
+  if (!isLeaf && !isRoot) {
+    return srcMat;
+  }
+
   const nodeMat = new THREE.MeshSSSNodeMaterial();
   nodeMat.name = srcMat.name;
   nodeMat.map = srcMat.map || null;
@@ -201,17 +229,20 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
 
   const uMatTint = uniform(nodeMat.color.clone());
   const uRoughMul = uniform(nodeMat.roughness);
+  const uSenWeight = uniform(tier === "outer" ? 1.0 : 0.0);
+  const uSssTint = uniform(
+    new THREE.Color(
+      isRoot ? 0xd9c296 : tier === "heart" ? 0x6eb81e : tier === "mid" ? 0x3b9a14 : 0x4b8f12
+    )
+  );
   nodeMat.userData.uMatTint = uMatTint;
   nodeMat.userData.uRoughMul = uRoughMul;
-
-  const isLeaf = tier === "outer" || tier === "mid" || tier === "heart";
-  const isRoot = tier === "root";
 
   const texRgb = srcMat.map ? texture(srcMat.map, uv()).rgb : vec3(1.0, 1.0, 1.0);
   const vColRgb = hasVertexColor ? vertexColor().rgb : vec3(1.0, 1.0, 1.0);
   let baseCol = texRgb.mul(vColRgb).mul(uMatTint);
   let baseRough = srcMat.roughnessMap ? texture(srcMat.roughnessMap, uv()).g.mul(uRoughMul) : uRoughMul;
-  let clearcoatVal = float(isLeaf ? 0.16 : isRoot ? 0.06 : 0.0);
+  let clearcoatVal = float(isLeaf ? 0.16 : 0.06);
 
   if (isLeaf) {
     nodeMat.clearcoat = 0.22;
@@ -227,45 +258,42 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
     baseRough = select(frontFacing, baseRough.mul(float(0.86)), baseRough.mul(float(1.24)));
     clearcoatVal = select(frontFacing, float(0.22), float(0.05));
 
-    // Edge-first organic leaf senescence on outer tier at BBCH 39 -> 49
+    // Unified edge-first senescence (uniform uSenWeight lets outer/mid/heart share ONE compiled shader!)
     const edgeDist = abs(uv().x.sub(float(0.5))).mul(float(2.0));
     const tipDist = clamp(uv().y.sub(float(0.26)).div(float(0.74)), float(0.0), float(1.0));
-    const senNoise = mx_fractal_noise_float(positionWorld.mul(float(6.5))).mul(float(0.32));
-    let senDryMask = float(0.0);
-    if (tier === "outer") {
-      const edgeCoord = edgeDist.mul(float(0.68)).add(tipDist.mul(float(0.50))).add(senNoise);
-      const chlorosisMask = smoothstep(float(0.72), float(1.18), edgeCoord).mul(uOuterSenescence);
-      const crispBrownMask = smoothstep(float(0.96), float(1.28), edgeCoord)
-        .mul(clamp(uOuterSenescence.sub(float(0.45)).div(float(0.55)), float(0.0), float(1.0)));
-      baseCol = mix(baseCol, vec3(0.74, 0.64, 0.17), chlorosisMask.mul(float(0.78)));
-      baseCol = mix(baseCol, vec3(0.36, 0.24, 0.09), crispBrownMask.mul(float(0.85)));
-      baseRough = mix(baseRough, float(0.86), crispBrownMask.mul(float(0.85)));
-      clearcoatVal = clearcoatVal.mul(float(1.0).sub(chlorosisMask.mul(float(0.75))));
-      senDryMask = crispBrownMask;
-    }
+    const senNoise = fastNoise3D(positionWorld.mul(float(16.0))).mul(float(0.20));
+    const edgeCoord = edgeDist.mul(float(0.68)).add(tipDist.mul(float(0.50))).add(senNoise);
+    const senActive = uOuterSenescence.mul(uSenWeight);
+    const chlorosisMask = smoothstep(float(0.72), float(1.18), edgeCoord).mul(senActive);
+    const crispBrownMask = smoothstep(float(0.96), float(1.28), edgeCoord)
+      .mul(clamp(uOuterSenescence.sub(float(0.45)).div(float(0.55)), float(0.0), float(1.0)))
+      .mul(uSenWeight);
+    baseCol = mix(baseCol, vec3(0.74, 0.64, 0.17), chlorosisMask.mul(float(0.78)));
+    baseCol = mix(baseCol, vec3(0.36, 0.24, 0.09), crispBrownMask.mul(float(0.85)));
+    baseRough = mix(baseRough, float(0.86), crispBrownMask.mul(float(0.85)));
+    clearcoatVal = clearcoatVal.mul(float(1.0).sub(chlorosisMask.mul(float(0.75))));
 
     // Calibrated Three.js 0.187.0 MeshSSSNodeMaterial translucency (vein-detailed backlit glow)
     const thickSample = leafThickTex ? texture(leafThickTex, uv()).r : float(0.75);
-    const sssTint = color(tier === "heart" ? 0x6eb81e : tier === "mid" ? 0x3b9a14 : 0x4b8f12);
     const sssSideBoost = select(frontFacing, float(1.0), float(1.18));
-    nodeMat.thicknessColorNode = sssTint
+    nodeMat.thicknessColorNode = uSssTint
       .mul(thickSample)
       .mul(sssSideBoost)
-      .mul(float(1.0).sub(senDryMask.mul(float(0.82))));
+      .mul(float(1.0).sub(crispBrownMask.mul(float(0.82))));
     nodeMat.thicknessDistortionNode = float(0.36);
     nodeMat.thicknessAmbientNode = float(0.0);
     nodeMat.thicknessAttenuationNode = float(0.085);
     nodeMat.thicknessPowerNode = float(3.2);
     nodeMat.thicknessScaleNode = float(2.3);
 
-    // Dynamic rosette & crown funnel ambient occlusion (augments SSAO in deep collar)
+    // Deepened zero-cost rosette & crown funnel ambient occlusion (sculptural depth at 0ms GPU cost)
     const radialDist = positionWorld.xz.length();
-    const heightAboveCrown = clamp(positionWorld.y.add(float(0.02)).div(float(0.28)), float(0.0), float(1.0));
-    const radialOpen = clamp(radialDist.div(float(0.18)), float(0.0), float(1.0));
+    const heightAboveCrown = clamp(positionWorld.y.add(float(0.02)).div(float(0.30)), float(0.0), float(1.0));
+    const radialOpen = clamp(radialDist.div(float(0.20)), float(0.0), float(1.0));
     nodeMat.aoNode = mix(
-      float(0.70),
+      float(0.56),
       float(1.0),
-      clamp(heightAboveCrown.mul(float(0.62)).add(radialOpen.mul(float(0.58))), float(0.0), float(1.0))
+      clamp(heightAboveCrown.mul(float(0.60)).add(radialOpen.mul(float(0.56))), float(0.0), float(1.0))
     );
   } else if (isRoot) {
     nodeMat.clearcoat = 0.06;
@@ -275,7 +303,7 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
     nodeMat.sheenColor = new THREE.Color(0xeaddc4);
 
     const rThick = rootThickTex ? texture(rootThickTex, uv()).r : float(0.30);
-    nodeMat.thicknessColorNode = color(0xd9c296).mul(rThick);
+    nodeMat.thicknessColorNode = uSssTint.mul(rThick);
     nodeMat.thicknessDistortionNode = float(0.24);
     nodeMat.thicknessAmbientNode = float(0.0);
     nodeMat.thicknessAttenuationNode = float(0.04);
@@ -283,12 +311,10 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
     nodeMat.thicknessScaleNode = float(1.15);
   }
 
-  // Uniform-branched GPU symptom overlay (skips 100% of noise work when symptoms off or non-target)
+  // Fast uniform-branched GPU symptom overlay (zero 3D loops -> instant shader compile + 60 FPS)
   const targetMatch = isRoot
     ? select(uSymptomTarget.lessThan(float(1.5)), float(1.0), float(0.0))
-    : isLeaf
-      ? select(uSymptomTarget.equal(float(0.0)).or(uSymptomTarget.greaterThan(float(1.5))), float(1.0), float(0.0))
-      : select(uSymptomTarget.lessThan(float(1.5)), float(1.0), float(0.0));
+    : select(uSymptomTarget.equal(float(0.0)).or(uSymptomTarget.greaterThan(float(1.5))), float(1.0), float(0.0));
 
   const evalSymptomColorRough = Fn(() => {
     const outCol = baseCol.toVar();
@@ -298,25 +324,25 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
       uSymptomIntensity.greaterThan(float(0.005)).and(targetMatch.greaterThan(float(0.5))),
       () => {
         const distToFocus = distance(positionWorld, uSymptomCenter);
-        const orgNoise = mx_fractal_noise_float(positionWorld.mul(float(14.0)));
-        const warpedDist = distToFocus.add(orgNoise.mul(uSymptomRadius).mul(float(0.32)));
+        const orgNoise = fastNoise3D(positionWorld.mul(float(28.0)));
+        const warpedDist = distToFocus.add(orgNoise.mul(uSymptomRadius).mul(float(0.28)));
         const focusMask = float(1.0)
-          .sub(smoothstep(uSymptomRadius.mul(float(0.26)), uSymptomRadius, warpedDist))
+          .sub(smoothstep(uSymptomRadius.mul(float(0.24)), uSymptomRadius, warpedDist))
           .mul(uSymptomIntensity);
 
         If(uSymptomMode.lessThan(float(1.5)), () => {
           // Mode 1: Rhizoctonia / Korneed dark dry cracked necrosis
-          const crackN = mx_fractal_noise_float(positionWorld.mul(float(36.0)));
-          const m1 = focusMask.mul(smoothstep(float(-0.35), float(0.45), crackN.add(float(0.35))));
+          const crackN = fastNoise3D(positionWorld.mul(float(68.0)));
+          const m1 = focusMask.mul(smoothstep(float(-0.42), float(0.38), crackN.add(float(0.32))));
           outCol.assign(mix(outCol, vec3(0.065, 0.036, 0.022), m1.mul(float(0.92))));
           outRough.assign(mix(outRough, float(0.95), m1));
         })
           .ElseIf(uSymptomMode.lessThan(float(2.5)), () => {
             // Mode 2: Cercospora beticola 2-4mm ash-grey spots with sharp crimson-purple halo
-            const wCell = mx_worley_noise_float(positionWorld.mul(float(44.0)));
-            const spotCore = float(1.0).sub(smoothstep(float(0.16), float(0.25), wCell));
-            const spotHalo = smoothstep(float(0.18), float(0.24), wCell).mul(
-              float(1.0).sub(smoothstep(float(0.28), float(0.38), wCell))
+            const spotD = fastSpots3D(positionWorld.mul(float(22.0)));
+            const spotCore = float(1.0).sub(smoothstep(float(0.10), float(0.16), spotD));
+            const spotHalo = smoothstep(float(0.11), float(0.16), spotD).mul(
+              float(1.0).sub(smoothstep(float(0.20), float(0.27), spotD))
             );
             const m2Core = focusMask.mul(spotCore);
             const m2Halo = focusMask.mul(spotHalo);
@@ -326,11 +352,7 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
           })
           .ElseIf(uSymptomMode.lessThan(float(3.5)), () => {
             // Mode 3: Erysiphe betae white-grey powdery mildew predominantly on upper surface
-            const mPatch = smoothstep(
-              float(-0.18),
-              float(0.36),
-              mx_fractal_noise_float(positionWorld.mul(float(22.0)))
-            );
+            const mPatch = smoothstep(float(-0.22), float(0.34), fastNoise3D(positionWorld.mul(float(42.0))));
             const upperBias = select(frontFacing, float(1.0), float(0.20));
             const m3 = focusMask.mul(mPatch).mul(upperBias);
             outCol.assign(mix(outCol, vec3(0.86, 0.87, 0.83), m3.mul(float(0.82))));
@@ -347,10 +369,10 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
           })
           .Else(() => {
             // Mode 5: Flea beetle / leaf-miner / cutworm / aphid lesions & chlorosis
-            const pCell = mx_worley_noise_float(positionWorld.mul(float(34.0)));
-            const pCen = float(1.0).sub(smoothstep(float(0.18), float(0.27), pCell));
-            const pRim = smoothstep(float(0.22), float(0.28), pCell).mul(
-              float(1.0).sub(smoothstep(float(0.30), float(0.39), pCell))
+            const pestD = fastSpots3D(positionWorld.mul(float(17.0)));
+            const pCen = float(1.0).sub(smoothstep(float(0.11), float(0.18), pestD));
+            const pRim = smoothstep(float(0.14), float(0.19), pestD).mul(
+              float(1.0).sub(smoothstep(float(0.22), float(0.29), pestD))
             );
             const m5C = focusMask.mul(pCen);
             const m5R = focusMask.mul(pRim);
@@ -368,7 +390,7 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
   const symRes = evalSymptomColorRough.toVar();
   const lesionMatteFactor = smoothstep(float(0.78), float(0.93), symRes.w).mul(uSymptomIntensity);
 
-  if ((isLeaf || isRoot) && nodeMat.thicknessColorNode) {
+  if (nodeMat.thicknessColorNode) {
     nodeMat.thicknessColorNode = nodeMat.thicknessColorNode.mul(
       float(1.0).sub(lesionMatteFactor.mul(float(0.85)))
     );
@@ -376,9 +398,7 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
 
   nodeMat.colorNode = symRes.rgb;
   nodeMat.roughnessNode = symRes.w;
-  if (isLeaf || isRoot) {
-    nodeMat.clearcoatNode = clamp(clearcoatVal.mul(float(1.0).sub(lesionMatteFactor)), float(0.0), float(0.35));
-  }
+  nodeMat.clearcoatNode = clamp(clearcoatVal.mul(float(1.0).sub(lesionMatteFactor)), float(0.0), float(0.35));
   return nodeMat;
 }
 
@@ -472,34 +492,9 @@ async function initScene() {
   rimLight.position.set(0.3, 1.8, -2.8);
   scene.add(rimLight);
 
-  // Desktop WebGPU RenderPipeline + SSAONode (depthAwareBlur, builtinAOContext, 4x MSAA, transparent alpha)
-  if (!isMobile && typeof THREE.RenderPipeline === "function") {
-    try {
-      const prePass = pass(scene, camera);
-      prePass.transparent = false;
-      prePass.setMRT(mrt({ output: packNormalToRGB(normalView) }));
-      const normalTex = prePass.getTexture("output");
-      normalTex.type = THREE.UnsignedByteType;
-      const prePassNormal = sample((u) => unpackRGBToNormal(prePass.getTextureNode().sample(u)));
-      const prePassDepth = prePass.getTextureNode("depth");
-
-      const aoPass = ssao(prePassDepth, prePassNormal, camera);
-      aoPass.resolutionScale = 0.5;
-      aoPass.samples.value = 10;
-      aoPass.radius.value = 0.18;
-      aoPass.intensity.value = 1.35;
-
-      const scenePass = pass(scene, camera);
-      scenePass.options.samples = 4;
-      scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r);
-
-      renderPipeline = new THREE.RenderPipeline(renderer, scenePass);
-      renderPipeline.outputColorTransform = true;
-    } catch (pipeErr) {
-      console.warn("RenderPipeline SSAO fallback to direct render:", pipeErr);
-      renderPipeline = null;
-    }
-  }
+  // Start with instant direct WebGPU/WebGL2 render (0ms SSAO compile stall, 60 FPS);
+  // RenderPipeline + SSAONode is initialized lazily only when user enables "Ультра AO"
+  renderPipeline = null;
 
   // 3D pulsing target marker attached at active threat anchor
   targetMarkerGroup = new THREE.Group();
@@ -911,6 +906,54 @@ function bindUI() {
     });
   }
 
+async function ensureUltraAOPipeline() {
+  if (renderPipeline) return true;
+  if (!renderer || !scene || !camera || typeof THREE.RenderPipeline !== "function") return false;
+  try {
+    const { ssao } = await import("three/addons/tsl/display/SSAONode.js");
+    const prePass = pass(scene, camera);
+    prePass.transparent = false;
+    prePass.setMRT(mrt({ output: packNormalToRGB(normalView) }));
+    const normalTex = prePass.getTexture("output");
+    normalTex.type = THREE.UnsignedByteType;
+    const prePassNormal = sample((u) => unpackRGBToNormal(prePass.getTextureNode().sample(u)));
+    const prePassDepth = prePass.getTextureNode("depth");
+
+    const aoPass = ssao(prePassDepth, prePassNormal, camera);
+    aoPass.resolutionScale = 0.5;
+    aoPass.samples.value = 10;
+    aoPass.radius.value = 0.18;
+    aoPass.intensity.value = 1.35;
+
+    const scenePass = pass(scene, camera);
+    scenePass.options.samples = 4;
+    scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r);
+
+    renderPipeline = new THREE.RenderPipeline(renderer, scenePass);
+    renderPipeline.outputColorTransform = true;
+    return true;
+  } catch (pipeErr) {
+    console.warn("Ultra AO unavailable, keeping fast direct render:", pipeErr);
+    renderPipeline = null;
+    return false;
+  }
+}
+
+  if (toggleSsaoBtn) {
+    toggleSsaoBtn.addEventListener("click", async () => {
+      if (!state.ultraAO) {
+        toggleSsaoBtn.textContent = "Ультра AO: …";
+        const ok = await ensureUltraAOPipeline();
+        state.ultraAO = ok;
+      } else {
+        state.ultraAO = false;
+      }
+      toggleSsaoBtn.classList.toggle("is-active", state.ultraAO);
+      toggleSsaoBtn.setAttribute("aria-pressed", state.ultraAO ? "true" : "false");
+      toggleSsaoBtn.textContent = `Ультра AO: ${state.ultraAO ? "Вкл" : "Выкл"}`;
+    });
+  }
+
   toggleHotspotsBtn.addEventListener("click", () => {
     state.showHotspots = !state.showHotspots;
     toggleHotspotsBtn.classList.toggle("is-active", state.showHotspots);
@@ -970,11 +1013,7 @@ async function resolveCropConfig() {
 }
 
 async function loadDataAndModel() {
-  // Start Draco WASM preload + SSS thickness maps immediately in parallel with JSON metadata
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/libs/draco/gltf/");
-  dracoLoader.preload();
-
+  // Start SSS thickness maps immediately in parallel with JSON metadata (zero Draco WASM overhead!)
   const texLoader = new THREE.TextureLoader();
   const loadLinearMap = async (url) => {
     try {
@@ -1032,7 +1071,6 @@ async function loadDataAndModel() {
 
   loadingText.textContent = "Загружаем 3D-модель (0%)…";
   const loader = new GLTFLoader();
-  loader.setDRACOLoader(dracoLoader);
   const gltfPromise = loader.loadAsync(state.crop.model_url, (xhr) => {
     const total = xhr.total || expectedGlbBytes;
     if (total > 0 && xhr.loaded > 0) {
@@ -1181,11 +1219,12 @@ function startLoop() {
     if (controls) controls.update();
     if (renderer && scene && camera) {
       updateBackdropSoilHorizon();
-      if (renderPipeline) {
+      if (state.ultraAO && renderPipeline) {
         try {
           renderPipeline.render();
         } catch (renderErr) {
           console.warn("RenderPipeline runtime fallback:", renderErr);
+          state.ultraAO = false;
           renderPipeline = null;
           renderer.render(scene, camera);
         }

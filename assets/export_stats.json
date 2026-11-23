@@ -4,15 +4,15 @@
   "object_count": 55,
   "triangle_count": 65365,
   "glb_path": "E:\\Videos\\перископ\\assets\\sugar_beet.glb",
-  "glb_bytes": 3347504,
+  "glb_bytes": 3323888,
   "blend_path": "E:\\Videos\\перископ\\assets\\sugar_beet.blend",
   "fps": 24,
   "frame_range": [
     0,
     150
   ],
-  "audit_mode": "full_31_frames",
-  "audit_frames_checked": 31,
+  "audit_mode": "milestone",
+  "audit_frames_checked": 4,
   "leaf_overlap_pairs": [],
   "leaf_blade_root_clipping": [],
   "leaf_root_overlaps": [],

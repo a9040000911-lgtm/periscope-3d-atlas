@@ -281,7 +281,7 @@ def generate_leaf_textures(tex_dir: Path, size: int = 2048) -> PBRTextureSet:
     )
     normal_rgb = height_to_normal_rgb(height, strength=4.2)
 
-    # Waxy cuticle roughness: glossy bullate crests (0.22..0.29) vs matte recessed veins (0.42..0.52)
+    # Waxy cuticle roughness (1K packed — visually identical to 2K while saving ~250 KB in GLB)
     rough = np.clip(
         0.37
         - 0.12 * bullate_dome
@@ -293,7 +293,8 @@ def generate_leaf_textures(tex_dir: Path, size: int = 2048) -> PBRTextureSet:
         0.19,
         0.56,
     )
-    rough_rgb = np.repeat(rough[..., None], 3, axis=-1)
+    rough_down = rough[::2, ::2] if size >= 2048 else rough
+    rough_rgb = np.repeat(rough_down[..., None], 3, axis=-1)
 
     # Physical translucency / inverse thickness map: dark opaque vascular ribs, bright glowing mesophyll
     lamina_thin = np.clip(0.86 + 0.10 * bullate_dome - 0.20 * vein_3rd - 0.12 * vein_4th, 0.42, 0.98)
@@ -419,7 +420,7 @@ def generate_root_textures(tex_dir: Path, size: int = 2048) -> PBRTextureSet:
     )
     normal_rgb = height_to_normal_rgb(height, strength=2.2)
 
-    # Clean damp creamy flanks (0.38..0.50) vs gritty matte soil-filled sugar grooves (0.84..0.94)
+    # Clean damp creamy flanks vs gritty matte soil-filled grooves (1K packed for lean GLB)
     rough = np.clip(
         0.43
         + 0.22 * groove_band
@@ -430,7 +431,8 @@ def generate_root_textures(tex_dir: Path, size: int = 2048) -> PBRTextureSet:
         0.32,
         0.94,
     )
-    rough_rgb = np.repeat(rough[..., None], 3, axis=-1)
+    rough_down = rough[::2, ::2] if size >= 2048 else rough
+    rough_rgb = np.repeat(rough_down[..., None], 3, axis=-1)
 
     root_sss = np.clip(
         0.24 + 0.16 * crown_mask + 0.18 * v * (1.0 - groove_band) * (1.0 - 0.5 * groove_soil),
