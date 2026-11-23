@@ -300,7 +300,7 @@ def generate_leaf_textures(tex_dir: Path, size: int = 2048) -> PBRTextureSet:
     vein_shield = np.clip(midrib * 0.90 + vein_field * 0.68, 0.0, 0.90)
     translucency = (0.12 * (1.0 - is_blade) + lamina_thin * is_blade) * (1.0 - vein_shield * 0.80)
     translucency = np.clip(translucency, 0.08, 0.96)
-    thick_down = translucency[::2, ::2] if size >= 1024 else translucency
+    thick_down = translucency[::4, ::4] if size >= 2048 else (translucency[::2, ::2] if size >= 1024 else translucency)
     _save_disk_png(
         "Leaf_Thickness",
         np.repeat(thick_down[..., None], 3, axis=-1),
@@ -437,7 +437,7 @@ def generate_root_textures(tex_dir: Path, size: int = 2048) -> PBRTextureSet:
         0.12,
         0.52,
     )
-    rthick_down = root_sss[::2, ::2] if size >= 1024 else root_sss
+    rthick_down = root_sss[::4, ::4] if size >= 2048 else (root_sss[::2, ::2] if size >= 1024 else root_sss)
     _save_disk_png(
         "Root_Thickness",
         np.repeat(rthick_down[..., None], 3, axis=-1),

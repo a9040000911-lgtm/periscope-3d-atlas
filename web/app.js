@@ -396,35 +396,6 @@ async function initScene() {
 
   scene = new THREE.Scene();
 
-  let sunDir = [2.2, 3.6, 2.6];
-  try {
-    let hdrUrl = "../assets/textures/daylight_field.hdr";
-    try {
-      const metaRes = await fetch("../assets/textures/hdri_meta.json", { cache: "no-store" });
-      if (metaRes.ok) {
-        const meta = await metaRes.json();
-        if (meta.file) hdrUrl = `../assets/textures/${meta.file}`;
-        if (Array.isArray(meta.sun_dir_gltf) && meta.sun_dir_gltf.length === 3) {
-          sunDir = meta.sun_dir_gltf;
-        }
-      }
-    } catch {
-      // keep default fallback HDRI path
-    }
-    const hdrLoader = new HDRLoader();
-    let hdrTex = null;
-    try {
-      hdrTex = await hdrLoader.loadAsync(hdrUrl);
-    } catch {
-      hdrTex = await hdrLoader.loadAsync("../assets/textures/daylight_field.hdr");
-    }
-    hdrTex.mapping = THREE.EquirectangularReflectionMapping;
-    scene.environment = hdrTex;
-    scene.environmentIntensity = 0.90;
-  } catch (hdrErr) {
-    console.warn("HDR environment load skipped:", hdrErr);
-  }
-
   const w = stageContainer.clientWidth || 800;
   const h = stageContainer.clientHeight || 540;
   camera = new THREE.PerspectiveCamera(36, w / h, 0.05, 40);
@@ -447,7 +418,7 @@ async function initScene() {
 
   const shadowRes = isMobile ? 1024 : 2048;
   const keyLight = new THREE.DirectionalLight(0xfff6e8, 2.30);
-  keyLight.position.set(sunDir[0], sunDir[1], sunDir[2]);
+  keyLight.position.set(2.2, 3.6, 2.6);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.set(shadowRes, shadowRes);
   keyLight.shadow.camera.near = 0.4;
@@ -461,6 +432,37 @@ async function initScene() {
   keyLight.shadow.normalBias = 0.018;
   keyLight.shadow.radius = 2.5;
   scene.add(keyLight);
+
+  // Load outdoor Poly Haven HDRI asynchronously in parallel (never blocks First Paint of 3D model)
+  (async () => {
+    try {
+      let hdrUrl = "../assets/textures/farm_field_1k.hdr";
+      try {
+        const metaRes = await fetch("../assets/textures/hdri_meta.json");
+        if (metaRes.ok) {
+          const meta = await metaRes.json();
+          if (meta.file) hdrUrl = `../assets/textures/${meta.file}`;
+          if (Array.isArray(meta.sun_dir_gltf) && meta.sun_dir_gltf.length === 3) {
+            keyLight.position.set(meta.sun_dir_gltf[0], meta.sun_dir_gltf[1], meta.sun_dir_gltf[2]);
+          }
+        }
+      } catch {
+        // use default farm_field_1k.hdr
+      }
+      const hdrLoader = new HDRLoader();
+      let hdrTex = null;
+      try {
+        hdrTex = await hdrLoader.loadAsync(hdrUrl);
+      } catch {
+        hdrTex = await hdrLoader.loadAsync("../assets/textures/daylight_field.hdr");
+      }
+      hdrTex.mapping = THREE.EquirectangularReflectionMapping;
+      scene.environment = hdrTex;
+      scene.environmentIntensity = 0.90;
+    } catch (hdrErr) {
+      console.warn("HDR environment load skipped:", hdrErr);
+    }
+  })();
 
   const fillLight = new THREE.DirectionalLight(0xd2e6ff, 0.62);
   fillLight.position.set(-2.4, 1.3, 2.2);
@@ -930,7 +932,7 @@ async function resolveCropConfig() {
   let statsUrl = requestedId === "sugar_beet" ? "../assets/export_stats.json" : `../assets/${requestedId}_stats.json`;
 
   try {
-    const idxRes = await fetch("../data/crops_index.json", { cache: "no-store" });
+    const idxRes = await fetch("../data/crops_index.json");
     if (idxRes.ok) {
       const idxData = await idxRes.json();
       const readyCrops = Array.isArray(idxData.crops) ? idxData.crops.filter((c) => c.ready) : [];
@@ -968,8 +970,32 @@ async function resolveCropConfig() {
 }
 
 async function loadDataAndModel() {
+  // Start Draco WASM preload + SSS thickness maps immediately in parallel with JSON metadata
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/libs/draco/gltf/");
+  dracoLoader.preload();
+
+  const texLoader = new THREE.TextureLoader();
+  const loadLinearMap = async (url) => {
+    try {
+      const tex = await texLoader.loadAsync(url);
+      tex.flipY = false;
+      tex.colorSpace = THREE.NoColorSpace;
+      return tex;
+    } catch {
+      return null;
+    }
+  };
+  const thicknessPromise = Promise.all([
+    loadLinearMap("../assets/textures/leaf_thickness.png"),
+    loadLinearMap("../assets/textures/root_thickness.png"),
+  ]);
+
   const { passportUrl, statsUrl } = await resolveCropConfig();
-  const cropRes = await fetch(passportUrl, { cache: "no-store" });
+  const [cropRes, statsRes] = await Promise.all([
+    fetch(passportUrl),
+    fetch(statsUrl).catch(() => null),
+  ]);
   if (!cropRes.ok) {
     throw new Error(`Ошибка загрузки паспорта культуры (HTTP ${cropRes.status}).`);
   }
@@ -991,11 +1017,12 @@ async function loadDataAndModel() {
   renderPhaseButtons();
   selectPhase(0, true);
 
+  let expectedGlbBytes = 0;
   try {
-    const statsRes = await fetch(statsUrl, { cache: "no-store" });
-    if (statsRes.ok) {
+    if (statsRes && statsRes.ok) {
       const stats = await statsRes.json();
-      const kb = (stats.glb_bytes / 1024).toFixed(0);
+      expectedGlbBytes = Number(stats.glb_bytes || 0);
+      const kb = (expectedGlbBytes / 1024).toFixed(0);
       statSize.textContent = `GLB ${kb} КБ`;
       statTris.textContent = `${stats.triangle_count.toLocaleString("ru-RU")} треуг.`;
     }
@@ -1003,28 +1030,23 @@ async function loadDataAndModel() {
     statSize.textContent = "GLB готов";
   }
 
-  loadingText.textContent = "Загружаем 2K PBR-модель, дневной HDRI и SSS-шейдеры…";
-  const texLoader = new THREE.TextureLoader();
-  const loadLinearMap = async (url) => {
-    try {
-      const tex = await texLoader.loadAsync(url);
-      tex.flipY = false;
-      tex.colorSpace = THREE.NoColorSpace;
-      return tex;
-    } catch {
-      return null;
-    }
-  };
-  const [leafThickTex, rootThickTex] = await Promise.all([
-    loadLinearMap("../assets/textures/leaf_thickness.png"),
-    loadLinearMap("../assets/textures/root_thickness.png"),
-  ]);
-
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/libs/draco/gltf/");
+  loadingText.textContent = "Загружаем 3D-модель (0%)…";
   const loader = new GLTFLoader();
   loader.setDRACOLoader(dracoLoader);
-  const gltf = await loader.loadAsync(state.crop.model_url);
+  const gltfPromise = loader.loadAsync(state.crop.model_url, (xhr) => {
+    const total = xhr.total || expectedGlbBytes;
+    if (total > 0 && xhr.loaded > 0) {
+      const pct = Math.min(99, Math.round((xhr.loaded / total) * 100));
+      const loadedMb = (xhr.loaded / (1024 * 1024)).toFixed(1);
+      const totalMb = (total / (1024 * 1024)).toFixed(1);
+      loadingText.textContent =
+        pct >= 99
+          ? "Распаковываем геометрию и TSL-шейдеры…"
+          : `Загружаем 3D-модель: ${pct}% (${loadedMb} / ${totalMb} МБ)…`;
+    }
+  });
+
+  const [[leafThickTex, rootThickTex], gltf] = await Promise.all([thicknessPromise, gltfPromise]);
 
   const upgradedMaterials = new Map();
   gltf.scene.traverse((obj) => {
