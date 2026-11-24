@@ -73,10 +73,18 @@ const THREAT_ICONS = {
 
 const canvas = document.getElementById("viewport-canvas");
 const stageContainer = document.getElementById("stage-container");
+const stageControlsTop = stageContainer ? stageContainer.querySelector(".stage-controls-top") : null;
+const reticleEl = document.getElementById("periscope-reticle");
+const reticleProgressArc = document.getElementById("reticle-progress-arc");
+const reticlePhaseRing = document.getElementById("reticle-phase-ring");
+const hotspotLeadersSvg = document.getElementById("hotspot-leaders");
 const hotspotsLayer = document.getElementById("hotspots-layer");
 const loadingOverlay = document.getElementById("loading-overlay");
 const loadingText = document.getElementById("loading-text");
 const errorBanner = document.getElementById("error-banner");
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const RETICLE_ARC_CIRCUM = 2 * Math.PI * 245;
 
 const statSize = document.getElementById("stat-size");
 const statTris = document.getElementById("stat-tris");
@@ -157,8 +165,21 @@ let fillLightRef = null;
 let hemiLightRef = null;
 let actions = [];
 let hotspotItems = [];
+let reticleDotEls = [];
 let targetMarkerGroup = null;
 let targetHaloMesh = null;
+const stageGeo = {
+  w: 800,
+  h: 600,
+  cx: 400,
+  cy: 300,
+  rPhase: 140,
+  dotR: 15,
+  pillMaxW: 182,
+  topSafe: 58,
+  botSafe: 546,
+  isMobile: false,
+};
 const matHandles = {
   outer: null,
   mid: null,
@@ -606,9 +627,70 @@ async function initScene() {
 
   resizeRenderer();
   window.addEventListener("resize", resizeRenderer);
+  if (typeof ResizeObserver === "function" && stageContainer) {
+    const ro = new ResizeObserver(() => resizeRenderer());
+    ro.observe(stageContainer);
+    if (stageControlsTop) ro.observe(stageControlsTop);
+  }
+}
+
+function computeStageGeometry() {
+  if (!stageContainer) return;
+  const w = Math.max(240, stageContainer.clientWidth || 800);
+  const h = Math.max(280, stageContainer.clientHeight || 540);
+  const controlsH = stageControlsTop
+    ? stageControlsTop.offsetTop + stageControlsTop.offsetHeight
+    : (w < 620 ? 84 : 46);
+  const topSafe = Math.max(54, controlsH + 10);
+  const isMobile = w < 520;
+  const botSafe = h - (isMobile ? 50 : 52);
+  const availH = Math.max(160, botSafe - topSafe);
+  const cx = w * 0.5;
+  const cy = topSafe + availH * 0.5;
+
+  let dotR;
+  let pillMaxW;
+  let rPhase;
+  if (isMobile) {
+    dotR = 13;
+    pillMaxW = Math.max(120, Math.floor((w - 24) / 2));
+    // Leave top and bottom horizontal shelves (42px each) clear of the circular phase ring
+    const maxRFromShelves = Math.max(48, (availH - 88) * 0.5 - dotR - 6);
+    rPhase = Math.max(52, Math.min(w * 0.24, maxRFromShelves, 78));
+  } else {
+    dotR = w >= 700 ? 15 : 14;
+    pillMaxW = Math.min(186, Math.max(136, Math.floor(w * 0.245)));
+    const maxRFromW = (w - 2 * (pillMaxW + 18) - 2 * (dotR + 14)) * 0.5;
+    const maxRFromH = (availH - 2 * (dotR + 16)) * 0.5;
+    rPhase = Math.max(72, Math.min(maxRFromW, maxRFromH, 156));
+  }
+
+  const reticleSize = rPhase / (245 / 800);
+  stageGeo.w = w;
+  stageGeo.h = h;
+  stageGeo.cx = cx;
+  stageGeo.cy = cy;
+  stageGeo.rPhase = rPhase;
+  stageGeo.dotR = dotR;
+  stageGeo.pillMaxW = pillMaxW;
+  stageGeo.topSafe = topSafe;
+  stageGeo.botSafe = botSafe;
+  stageGeo.isMobile = isMobile;
+
+  stageContainer.style.setProperty("--reticle-cx", `${cx.toFixed(1)}px`);
+  stageContainer.style.setProperty("--reticle-cy", `${cy.toFixed(1)}px`);
+  stageContainer.style.setProperty("--reticle-size", `${reticleSize.toFixed(1)}px`);
+  stageContainer.style.setProperty("--dot-size", `${(dotR * 2).toFixed(0)}px`);
+  stageContainer.style.setProperty("--pill-max-w", `${pillMaxW}px`);
+
+  if (hotspotLeadersSvg) {
+    hotspotLeadersSvg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  }
+  layoutReticlePhaseDots();
 }
 
 function resizeRenderer() {
+  computeStageGeometry();
   if (!renderer || !camera) return;
   const w = Math.max(100, stageContainer.clientWidth);
   const h = Math.max(100, stageContainer.clientHeight);
@@ -628,6 +710,69 @@ function applyCameraPreset(presetName) {
   }
 }
 
+function renderReticlePhaseRing() {
+  if (!reticlePhaseRing || !state.crop) return;
+  reticlePhaseRing.innerHTML = "";
+  const phases = state.crop.phases || [];
+  reticleDotEls = phases.map((phase, idx) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reticle-phase-dot";
+    btn.setAttribute("role", "tab");
+    btn.dataset.index = String(idx);
+    btn.setAttribute("aria-label", `Фаза ${idx + 1}: ${phase.bbch} — ${phase.title}`);
+    btn.innerHTML = `<span>${idx + 1}</span><span class="reticle-phase-tooltip">${phase.bbch} · ${phase.short_label}</span>`;
+    btn.addEventListener("click", (ev) => {
+      if (ev.detail > 0) btn.blur();
+      stopAutoplay();
+      selectPhase(idx, true);
+    });
+    reticlePhaseRing.appendChild(btn);
+    return btn;
+  });
+  layoutReticlePhaseDots();
+  updateReticlePhaseRing(state.activePhaseIndex);
+}
+
+function layoutReticlePhaseDots() {
+  const n = reticleDotEls.length;
+  if (!n) return;
+  for (let idx = 0; idx < n; idx++) {
+    const btn = reticleDotEls[idx];
+    const ang = -Math.PI / 2 + (idx / n) * Math.PI * 2;
+    const cosA = Math.cos(ang);
+    const sinA = Math.sin(ang);
+    const px = stageGeo.cx + cosA * stageGeo.rPhase;
+    const py = stageGeo.cy + sinA * stageGeo.rPhase;
+    btn.style.left = `${px.toFixed(1)}px`;
+    btn.style.top = `${py.toFixed(1)}px`;
+    btn.dataset.quadrant =
+      sinA < -0.7 ? "top" : sinA > 0.7 ? "bottom" : cosA >= 0 ? "right" : "left";
+  }
+}
+
+function updateReticleArcProgress(progress01) {
+  if (!reticleProgressArc || !state.crop) return;
+  const n = Math.max(2, (state.crop.phases || []).length);
+  const clamped = Math.max(0, Math.min(1, progress01));
+  const arcLen = clamped * ((n - 1) / n) * RETICLE_ARC_CIRCUM;
+  reticleProgressArc.style.strokeDasharray = `${arcLen.toFixed(1)} ${RETICLE_ARC_CIRCUM.toFixed(1)}`;
+}
+
+function updateReticlePhaseRing(activeIdx) {
+  for (let idx = 0; idx < reticleDotEls.length; idx++) {
+    const btn = reticleDotEls[idx];
+    const isSel = idx === activeIdx;
+    btn.classList.toggle("is-active", isSel);
+    btn.classList.toggle("is-passed", idx < activeIdx);
+    btn.setAttribute("aria-selected", isSel ? "true" : "false");
+  }
+  const phases = state.crop?.phases || [];
+  if (phases.length > 1) {
+    updateReticleArcProgress(activeIdx / (phases.length - 1));
+  }
+}
+
 function renderPhaseButtons() {
   phaseButtonsEl.innerHTML = "";
   state.crop.phases.forEach((phase, idx) => {
@@ -643,15 +788,18 @@ function renderPhaseButtons() {
         <span class="phase-row-label">${phase.short_label}</span>
       </span>
     `;
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (ev) => {
+      if (ev.detail > 0) btn.blur();
       stopAutoplay();
       selectPhase(idx, true);
     });
     phaseButtonsEl.appendChild(btn);
   });
+  renderReticlePhaseRing();
 }
 
 function syncSliderVisual(labelText) {
+  if (!phaseSlider) return;
   phaseSlider.style.setProperty("--attr-min", phaseSlider.min || "0");
   phaseSlider.style.setProperty("--attr-max", phaseSlider.max || "100");
   phaseSlider.style.setProperty("--control-value", phaseSlider.value);
@@ -669,8 +817,10 @@ function selectPhase(index, updateTargetTime = true) {
 
   if (updateTargetTime) {
     state.targetTime = phase.time_sec;
-    const pct = (phase.time_sec / state.durationSec) * 100;
-    phaseSlider.value = pct.toFixed(1);
+    if (phaseSlider) {
+      const pct = (phase.time_sec / state.durationSec) * 100;
+      phaseSlider.value = pct.toFixed(1);
+    }
   }
   syncSliderVisual(`${phase.bbch} — ${phase.title}`);
 
@@ -679,11 +829,12 @@ function selectPhase(index, updateTargetTime = true) {
     btn.classList.toggle("is-active", isSel);
     btn.setAttribute("aria-selected", isSel ? "true" : "false");
   }
-  btnPrev.disabled = clamped === 0;
-  btnNext.disabled = clamped === phases.length - 1;
+  updateReticlePhaseRing(clamped);
+  if (btnPrev) btnPrev.disabled = clamped === 0;
+  if (btnNext) btnNext.disabled = clamped === phases.length - 1;
 
-  readoutBbch.textContent = phase.bbch;
-  readoutPhase.textContent = `Фаза ${clamped + 1} из ${phases.length}`;
+  if (readoutBbch) readoutBbch.textContent = phase.bbch;
+  if (readoutPhase) readoutPhase.textContent = `Фаза ${clamped + 1} из ${phases.length}`;
   statBbch.textContent = phase.bbch;
 
   if (changed) {
@@ -778,6 +929,7 @@ function renderThreats(threats) {
 
 function renderHotspots(threats) {
   hotspotsLayer.innerHTML = "";
+  if (hotspotLeadersSvg) hotspotLeadersSvg.innerHTML = "";
   hotspotItems = threats.map((threat) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -788,15 +940,31 @@ function renderHotspots(threats) {
       btn.classList.add("is-active");
     }
     const iconSvg = THREAT_ICONS[threat.icon_type] || THREAT_ICONS.fungus;
-    btn.innerHTML = `<span class="hotspot-icon" aria-hidden="true">${iconSvg}</span><span>${threat.name}</span>`;
+    btn.innerHTML = `<span class="hotspot-icon" aria-hidden="true">${iconSvg}</span><span class="hotspot-label">${threat.name}</span>`;
     btn.addEventListener("click", () => setActiveThreat(threat.id, true, true));
     hotspotsLayer.appendChild(btn);
+
+    let lineEl = null;
+    let anchorDotEl = null;
+    if (hotspotLeadersSvg) {
+      lineEl = document.createElementNS(SVG_NS, "polyline");
+      lineEl.setAttribute("class", "hotspot-leader-line");
+      anchorDotEl = document.createElementNS(SVG_NS, "circle");
+      anchorDotEl.setAttribute("class", "hotspot-anchor-dot");
+      anchorDotEl.dataset.severity = threat.severity;
+      anchorDotEl.setAttribute("r", "3.5");
+      hotspotLeadersSvg.appendChild(lineEl);
+      hotspotLeadersSvg.appendChild(anchorDotEl);
+    }
+
     return {
       id: threat.id,
       severity: threat.severity,
       anchor: new THREE.Vector3(...threat.anchor),
       symptom: threat.symptom || null,
       el: btn,
+      lineEl,
+      anchorDotEl,
     };
   });
 }
@@ -876,32 +1044,187 @@ function updateBackdropSoilHorizon() {
   }
 }
 
+function hideHotspotItem(item) {
+  item.el.style.display = "none";
+  if (item.lineEl) item.lineEl.style.display = "none";
+  if (item.anchorDotEl) item.anchorDotEl.style.display = "none";
+}
+
 function updateHotspotPositions() {
   if (!camera || !state.showHotspots) {
     hotspotsLayer.hidden = true;
+    if (hotspotLeadersSvg) hotspotLeadersSvg.hidden = true;
     return;
   }
   hotspotsLayer.hidden = false;
-  const width = stageContainer.clientWidth;
-  const height = stageContainer.clientHeight;
+  if (hotspotLeadersSvg) hotspotLeadersSvg.hidden = false;
+
+  const { w, h, cx, cy, rPhase, dotR, pillMaxW, topSafe, botSafe, isMobile } = stageGeo;
   const proj = new THREE.Vector3();
+  const visible = [];
 
   for (const item of hotspotItems) {
     proj.copy(item.anchor).project(camera);
     if (proj.z > 1 || proj.z < -1) {
-      item.el.style.display = "none";
+      hideHotspotItem(item);
       continue;
     }
-    const x = (proj.x * 0.5 + 0.5) * width;
-    const y = (-proj.y * 0.5 + 0.5) * height;
-    if (x < 24 || x > width - 24 || y < 52 || y > height - 92) {
-      item.el.style.display = "none";
+    const ax = (proj.x * 0.5 + 0.5) * w;
+    const ay = (-proj.y * 0.5 + 0.5) * h;
+    if (ax < -20 || ax > w + 20 || ay < -20 || ay > h + 20) {
+      hideHotspotItem(item);
       continue;
     }
     item.el.style.display = "inline-flex";
-    item.el.dataset.align = item.anchor.x < -0.05 ? "left" : item.anchor.x > 0.05 ? "right" : "center";
-    item.el.style.left = `${x.toFixed(1)}px`;
-    item.el.style.top = `${y.toFixed(1)}px`;
+    const pw = Math.min(pillMaxW, Math.max(88, item.el.offsetWidth || pillMaxW));
+    const ph = Math.max(28, item.el.offsetHeight || 34);
+    visible.push({ item, ax, ay, pw, ph, x1: 0, y1: 0, x2: 0, y2: 0, side: "right" });
+  }
+
+  if (visible.length === 0) return;
+
+  if (isMobile) {
+    // Upper anchors stay on the top shelf and lower anchors on the bottom shelf so leader lines never cross
+    const byY = [...visible].sort((a, b) => a.ay - b.ay);
+    let topShelf;
+    let botShelf;
+    if (byY.length === 1) {
+      topShelf = byY[0].ay <= cy ? [byY[0]] : [];
+      botShelf = byY[0].ay <= cy ? [] : [byY[0]];
+    } else {
+      const topCount = Math.ceil(byY.length / 2);
+      topShelf = byY.slice(0, topCount);
+      botShelf = byY.slice(topCount);
+    }
+
+    const placeShelf = (shelf, isTop) => {
+      shelf.sort((a, b) => a.ax - b.ax);
+      shelf.forEach((entry, idx) => {
+        const y1 = isTop ? topSafe + 4 : botSafe - entry.ph - 4;
+        let x1;
+        if (shelf.length === 1) {
+          x1 = Math.max(8, Math.min(w - entry.pw - 8, entry.ax - entry.pw * 0.5));
+        } else if (idx === 0) {
+          x1 = 8;
+        } else {
+          x1 = Math.max(shelf[idx - 1].x2 + 6, w - entry.pw - 8);
+        }
+        entry.side = isTop ? "top" : "bottom";
+        entry.x1 = x1;
+        entry.y1 = y1;
+        entry.x2 = x1 + entry.pw;
+        entry.y2 = y1 + entry.ph;
+      });
+    };
+    placeShelf(topShelf, true);
+    placeShelf(botShelf, false);
+  } else {
+    // 3-Zone Desktop/Tablet solver: push outside phase-ring keep-out radius on Left & Right lanes
+    const byX = [...visible].sort((a, b) => a.ax - b.ax);
+    let leftGroup = [];
+    let rightGroup = [];
+    for (const entry of byX) {
+      if (entry.ax < cx - 8) leftGroup.push(entry);
+      else if (entry.ax > cx + 8) rightGroup.push(entry);
+      else if (leftGroup.length <= rightGroup.length) leftGroup.push(entry);
+      else rightGroup.push(entry);
+    }
+    if (byX.length >= 2 && (leftGroup.length === 0 || rightGroup.length === 0)) {
+      const mid = Math.floor(byX.length / 2);
+      leftGroup = byX.slice(0, mid);
+      rightGroup = byX.slice(mid);
+    }
+
+    const rKeepout = rPhase + dotR + 14;
+    const minGap = 10;
+
+    for (const [side, grp] of [
+      ["left", leftGroup],
+      ["right", rightGroup],
+    ]) {
+      if (grp.length === 0) continue;
+      grp.sort((a, b) => a.ay - b.ay);
+      const ys = grp.map((e) => Math.max(topSafe + e.ph * 0.5, Math.min(botSafe - e.ph * 0.5, e.ay)));
+
+      for (let passIdx = 0; passIdx < 4; passIdx++) {
+        for (let j = 1; j < grp.length; j++) {
+          const minY = ys[j - 1] + grp[j - 1].ph * 0.5 + grp[j].ph * 0.5 + minGap;
+          if (ys[j] < minY) ys[j] = minY;
+        }
+        for (let j = grp.length - 1; j >= 0; j--) {
+          const maxY = botSafe - grp[j].ph * 0.5;
+          if (ys[j] > maxY) ys[j] = maxY;
+          if (j > 0) {
+            const maxPrev = ys[j] - grp[j].ph * 0.5 - grp[j - 1].ph * 0.5 - minGap;
+            if (ys[j - 1] > maxPrev) ys[j - 1] = maxPrev;
+          }
+        }
+        for (let j = 0; j < grp.length; j++) {
+          ys[j] = Math.max(topSafe + grp[j].ph * 0.5, Math.min(botSafe - grp[j].ph * 0.5, ys[j]));
+        }
+      }
+
+      grp.forEach((entry, j) => {
+        const py = ys[j];
+        const dyNear = Math.max(0, Math.abs(py - cy) - entry.ph * 0.5);
+        const chord = dyNear < rKeepout ? Math.sqrt(Math.max(0, rKeepout * rKeepout - dyNear * dyNear)) : 0;
+        const xClear = Math.max(chord, rPhase * 0.58);
+
+        let x1;
+        let x2;
+        if (side === "left") {
+          x2 = cx - xClear;
+          x1 = Math.max(10, x2 - entry.pw);
+          x2 = x1 + entry.pw;
+        } else {
+          x1 = cx + xClear;
+          x2 = Math.min(w - 10, x1 + entry.pw);
+          x1 = x2 - entry.pw;
+        }
+        entry.side = side;
+        entry.x1 = x1;
+        entry.x2 = x2;
+        entry.y1 = py - entry.ph * 0.5;
+        entry.y2 = py + entry.ph * 0.5;
+      });
+    }
+  }
+
+  for (const entry of visible) {
+    const { item, ax, ay, x1, y1, x2, y2, side } = entry;
+    const isActive = item.id === state.activeThreatId;
+    item.el.dataset.align = side;
+    item.el.style.left = `${x1.toFixed(1)}px`;
+    item.el.style.top = `${y1.toFixed(1)}px`;
+
+    if (item.lineEl && item.anchorDotEl) {
+      const anchorVisible = ax >= 4 && ax <= w - 4 && ay >= 4 && ay <= h - 4;
+      item.lineEl.style.display = anchorVisible ? "" : "none";
+      item.anchorDotEl.style.display = anchorVisible ? "" : "none";
+      if (anchorVisible) {
+        let pts;
+        if (side === "left" || side === "right") {
+          const edgeX = side === "left" ? x2 : x1;
+          const edgeY = (y1 + y2) * 0.5;
+          const elbowX =
+            side === "left"
+              ? Math.min(Math.max(ax, edgeX), edgeX + 16)
+              : Math.max(Math.min(ax, edgeX), edgeX - 16);
+          pts = `${ax.toFixed(1)},${ay.toFixed(1)} ${elbowX.toFixed(1)},${edgeY.toFixed(1)} ${edgeX.toFixed(1)},${edgeY.toFixed(1)}`;
+        } else {
+          const edgeX = (x1 + x2) * 0.5;
+          const edgeY = side === "top" ? y2 : y1;
+          const stubY = side === "top" ? edgeY + 10 : edgeY - 10;
+          pts = `${ax.toFixed(1)},${ay.toFixed(1)} ${edgeX.toFixed(1)},${stubY.toFixed(1)} ${edgeX.toFixed(1)},${edgeY.toFixed(1)}`;
+        }
+        item.lineEl.setAttribute("points", pts);
+        item.lineEl.classList.toggle("is-active", isActive);
+        item.anchorDotEl.setAttribute("cx", ax.toFixed(1));
+        item.anchorDotEl.setAttribute("cy", ay.toFixed(1));
+        item.anchorDotEl.setAttribute("r", isActive ? "5.2" : "3.5");
+        item.anchorDotEl.classList.toggle("is-active", isActive);
+      }
+    }
   }
 }
 
@@ -962,7 +1285,11 @@ function findClosestPhaseIndex(timeSec) {
 
 function stopAutoplay() {
   state.autoPlaying = false;
-  btnAutoplay.textContent = "▶ Авто-рост";
+  if (btnAutoplay) {
+    btnAutoplay.textContent = "▶";
+    btnAutoplay.classList.remove("is-playing");
+    btnAutoplay.setAttribute("aria-label", "Запустить авто-рост");
+  }
 }
 
 function toggleAutoplay() {
@@ -972,9 +1299,17 @@ function toggleAutoplay() {
       state.targetTime = 0;
       state.currentTime = 0;
     }
-    btnAutoplay.textContent = "⏸ Пауза";
+    if (btnAutoplay) {
+      btnAutoplay.textContent = "⏸";
+      btnAutoplay.classList.add("is-playing");
+      btnAutoplay.setAttribute("aria-label", "Приостановить авто-рост");
+    }
   } else {
-    btnAutoplay.textContent = "▶ Авто-рост";
+    if (btnAutoplay) {
+      btnAutoplay.textContent = "▶";
+      btnAutoplay.classList.remove("is-playing");
+      btnAutoplay.setAttribute("aria-label", "Запустить авто-рост");
+    }
   }
 }
 
@@ -1038,25 +1373,48 @@ function syncUltraAOState() {
 }
 
 function bindUI() {
-  phaseSlider.addEventListener("input", () => {
-    stopAutoplay();
-    const pct = Number(phaseSlider.value) / 100;
-    state.targetTime = pct * state.durationSec;
-    const nearest = findClosestPhaseIndex(state.targetTime);
-    selectPhase(nearest, false);
-  });
+  if (phaseSlider) {
+    phaseSlider.addEventListener("input", () => {
+      stopAutoplay();
+      const pct = Number(phaseSlider.value) / 100;
+      state.targetTime = pct * state.durationSec;
+      const nearest = findClosestPhaseIndex(state.targetTime);
+      selectPhase(nearest, false);
+    });
+  }
 
-  btnPrev.addEventListener("click", () => {
-    stopAutoplay();
-    selectPhase(state.activePhaseIndex - 1, true);
-  });
+  if (btnPrev) {
+    btnPrev.addEventListener("click", () => {
+      stopAutoplay();
+      selectPhase(state.activePhaseIndex - 1, true);
+    });
+  }
 
-  btnNext.addEventListener("click", () => {
-    stopAutoplay();
-    selectPhase(state.activePhaseIndex + 1, true);
-  });
+  if (btnNext) {
+    btnNext.addEventListener("click", () => {
+      stopAutoplay();
+      selectPhase(state.activePhaseIndex + 1, true);
+    });
+  }
 
-  btnAutoplay.addEventListener("click", toggleAutoplay);
+  if (btnAutoplay) {
+    btnAutoplay.addEventListener("click", toggleAutoplay);
+  }
+
+  window.addEventListener("keydown", (ev) => {
+    if (!state.crop || (ev.target && /^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName))) {
+      return;
+    }
+    if (ev.key === "ArrowLeft") {
+      ev.preventDefault();
+      stopAutoplay();
+      selectPhase(state.activePhaseIndex - 1, true);
+    } else if (ev.key === "ArrowRight") {
+      ev.preventDefault();
+      stopAutoplay();
+      selectPhase(state.activePhaseIndex + 1, true);
+    }
+  });
 
   if (toggleSymptomsBtn) {
     toggleSymptomsBtn.addEventListener("click", () => {
@@ -1325,9 +1683,11 @@ function startLoop() {
         state.targetTime = state.durationSec;
         stopAutoplay();
       }
-      const pct = (state.targetTime / state.durationSec) * 100;
-      phaseSlider.value = pct.toFixed(1);
-      syncSliderVisual();
+      if (phaseSlider) {
+        const pct = (state.targetTime / state.durationSec) * 100;
+        phaseSlider.value = pct.toFixed(1);
+        syncSliderVisual();
+      }
       const nearest = findClosestPhaseIndex(state.targetTime);
       if (nearest !== state.activePhaseIndex) {
         selectPhase(nearest, false);
@@ -1353,8 +1713,9 @@ function startLoop() {
       const progress = Math.max(0, Math.min(1, state.currentTime / state.durationSec));
       updateMaturationMaterials(progress);
       updateLiveMetrics(state.currentTime);
+      updateReticleArcProgress(progress);
 
-      if (state.crop) {
+      if (state.crop && readoutFrame) {
         const currentFrame = Math.round(state.currentTime * (state.crop.fps || 24));
         readoutFrame.textContent = `Кадр ${currentFrame} / ${state.crop.total_frames}`;
       }

@@ -74,16 +74,11 @@
       <section class="stage-column" aria-label="3D-модель культуры">
         <div class="stage-card" id="stage-container">
           <!-- Concentric radar reticle behind/around the floating plant -->
-          <svg class="periscope-reticle" viewBox="0 0 800 800" aria-hidden="true">
+          <svg class="periscope-reticle" id="periscope-reticle" viewBox="0 0 800 800" aria-hidden="true">
             <circle cx="400" cy="400" r="145" />
             <circle cx="400" cy="400" r="245" />
+            <circle class="reticle-progress-arc" id="reticle-progress-arc" cx="400" cy="400" r="245" transform="rotate(-90 400 400)" />
             <circle cx="400" cy="400" r="345" stroke-dasharray="4 6" />
-            <circle class="orb-dot" cx="400" cy="155" r="4.5" />
-            <circle class="orb-dot" cx="612" cy="278" r="4.5" />
-            <circle class="orb-dot" cx="612" cy="522" r="4.5" />
-            <circle class="orb-dot" cx="400" cy="645" r="4.5" />
-            <circle class="orb-dot" cx="188" cy="522" r="4.5" />
-            <circle class="orb-dot" cx="188" cy="278" r="4.5" />
             <circle class="orb-dot dim" cx="298" cy="70" r="3.5" />
             <circle class="orb-dot dim" cx="725" cy="390" r="3.5" />
             <circle class="orb-dot dim" cx="120" cy="430" r="3.5" />
@@ -110,38 +105,21 @@
             </div>
           </div>
 
+          <svg class="hotspot-leaders" id="hotspot-leaders" aria-hidden="true"></svg>
+          <div class="reticle-phase-ring" id="reticle-phase-ring" role="tablist" aria-label="Фазы развития по кругу"></div>
           <div class="hotspots-layer" id="hotspots-layer" aria-label="3D-метки угроз на растении"></div>
 
-          <!-- Green highlight banner style readout + timeline floating cleanly at bottom -->
-          <div class="timeline-dock" aria-label="Шкала фаз роста">
-            <div class="timeline-top">
-              <div class="playback-controls">
-                <button type="button" class="nav-btn" id="btn-prev" title="Предыдущая фаза">← Назад</button>
-                <button type="button" class="nav-btn primary" id="btn-autoplay">▶ Авто-рост</button>
-                <button type="button" class="nav-btn" id="btn-next" title="Следующая фаза">Вперёд →</button>
-              </div>
-              <div class="timeline-readout">
-                <span class="phase-tag-inline" id="readout-bbch">BBCH 00–05</span>
-                <span id="readout-phase">Фаза 1 из 6</span>
-                <span class="sep">·</span>
-                <span id="readout-frame">Кадр 0 / 150</span>
-              </div>
+          <!-- Compact bottom status pill + circular autoplay button -->
+          <div class="stage-bottom-hud" aria-label="Статус и авто-рост">
+            <button type="button" class="autoplay-circle-btn" id="btn-autoplay" aria-label="Запустить авто-рост" title="Авто-рост по фазам">▶</button>
+            <div class="stage-mini-readout">
+              <span class="phase-tag-inline" id="readout-bbch">BBCH 00–05</span>
+              <span id="readout-phase">Фаза 1 из 6</span>
+              <span class="sep mini-frame-sep">·</span>
+              <span id="readout-frame">Кадр 0 / 150</span>
+              <span class="sep mini-hint-sep">·</span>
+              <span class="mini-hint">360° мышью · колёсико — масштаб</span>
             </div>
-
-            <div class="slider-wrap">
-              <label for="phase-slider" class="sr-only">Шкала фаз роста и созревания от семени до спелости</label>
-              <input
-                id="phase-slider"
-                type="range"
-                min="0"
-                max="100"
-                step="0.2"
-                value="0"
-                aria-valuetext="BBCH 00–05 — Семя и прорастание"
-              />
-            </div>
-
-            <div class="stage-hint">Вращайте на 360° зажатой кнопкой мыши · Колёсико — масштаб</div>
           </div>
 
           <div class="loading-overlay" id="loading-overlay">
