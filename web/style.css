@@ -273,8 +273,15 @@ body {
 
 .periscope-reticle circle {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.34);
-  stroke-width: 1.35;
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1.25;
+}
+
+.periscope-reticle .reticle-flank-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.44);
+  stroke-width: 2.2;
+  stroke-linecap: round;
 }
 
 .periscope-reticle .reticle-progress-arc {
@@ -282,8 +289,8 @@ body {
   stroke: var(--accent);
   stroke-width: 4.5;
   stroke-linecap: round;
-  stroke-dasharray: 0 1540;
-  transition: stroke-dasharray 0.3s ease;
+  stroke-dasharray: 0 280;
+  transition: stroke-dasharray 0.22s ease;
   filter: drop-shadow(0 0 5px rgba(126, 194, 30, 0.65));
 }
 

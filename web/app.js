@@ -75,7 +75,8 @@ const canvas = document.getElementById("viewport-canvas");
 const stageContainer = document.getElementById("stage-container");
 const stageControlsTop = stageContainer ? stageContainer.querySelector(".stage-controls-top") : null;
 const reticleEl = document.getElementById("periscope-reticle");
-const reticleProgressArc = document.getElementById("reticle-progress-arc");
+const reticleProgressLeft = document.getElementById("reticle-progress-left");
+const reticleProgressRight = document.getElementById("reticle-progress-right");
 const reticlePhaseRing = document.getElementById("reticle-phase-ring");
 const hotspotLeadersSvg = document.getElementById("hotspot-leaders");
 const hotspotsLayer = document.getElementById("hotspots-layer");
@@ -84,7 +85,7 @@ const loadingText = document.getElementById("loading-text");
 const errorBanner = document.getElementById("error-banner");
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const RETICLE_ARC_CIRCUM = 2 * Math.PI * 245;
+const FLANK_ARC_LEN = 245 * ((64 * Math.PI) / 180);
 
 const statSize = document.getElementById("stat-size");
 const statTris = document.getElementById("stat-tris");
@@ -166,19 +167,29 @@ let hemiLightRef = null;
 let actions = [];
 let hotspotItems = [];
 let reticleDotEls = [];
+let plantRoot = null;
+let plantExtentProfile = [];
 let targetMarkerGroup = null;
 let targetHaloMesh = null;
+const tmpExtCenter = new THREE.Vector3();
+const tmpExtSide = new THREE.Vector3();
+const tmpCamRight = new THREE.Vector3();
 const stageGeo = {
   w: 800,
   h: 600,
   cx: 400,
   cy: 300,
-  rPhase: 140,
+  rPhase: 110,
+  targetRPhase: 110,
+  minRPhase: 84,
+  maxRPhase: 196,
+  plantScreenHalfW: 36,
   dotR: 15,
   pillMaxW: 182,
   topSafe: 58,
   botSafe: 546,
   isMobile: false,
+  dotPositions: [],
 };
 const matHandles = {
   outer: null,
@@ -650,33 +661,35 @@ function computeStageGeometry() {
 
   let dotR;
   let pillMaxW;
-  let rPhase;
+  let minRPhase;
+  let maxRPhase;
   if (isMobile) {
     dotR = 13;
     pillMaxW = Math.max(120, Math.floor((w - 24) / 2));
-    // Leave top and bottom horizontal shelves (42px each) clear of the circular phase ring
-    const maxRFromShelves = Math.max(48, (availH - 88) * 0.5 - dotR - 6);
-    rPhase = Math.max(52, Math.min(w * 0.24, maxRFromShelves, 78));
+    minRPhase = 60;
+    const maxRFromH = Math.max(66, (availH - 86) * 0.5 - dotR - 4);
+    maxRPhase = Math.max(66, Math.min(w * 0.5 - dotR - 10, maxRFromH, 146));
   } else {
     dotR = w >= 700 ? 15 : 14;
     pillMaxW = Math.min(186, Math.max(136, Math.floor(w * 0.245)));
-    const maxRFromW = (w - 2 * (pillMaxW + 18) - 2 * (dotR + 14)) * 0.5;
-    const maxRFromH = (availH - 2 * (dotR + 16)) * 0.5;
-    rPhase = Math.max(72, Math.min(maxRFromW, maxRFromH, 156));
+    minRPhase = Math.max(78, Math.min(104, w * 0.14));
+    maxRPhase = Math.max(minRPhase + 18, Math.min(w * 0.5 - dotR - 22, availH * 0.5 - dotR - 14, 215));
   }
 
-  const reticleSize = rPhase / (245 / 800);
   stageGeo.w = w;
   stageGeo.h = h;
   stageGeo.cx = cx;
   stageGeo.cy = cy;
-  stageGeo.rPhase = rPhase;
+  stageGeo.minRPhase = minRPhase;
+  stageGeo.maxRPhase = maxRPhase;
   stageGeo.dotR = dotR;
   stageGeo.pillMaxW = pillMaxW;
   stageGeo.topSafe = topSafe;
   stageGeo.botSafe = botSafe;
   stageGeo.isMobile = isMobile;
+  stageGeo.rPhase = Math.max(minRPhase, Math.min(maxRPhase, stageGeo.rPhase));
 
+  const reticleSize = stageGeo.rPhase / (245 / 800);
   stageContainer.style.setProperty("--reticle-cx", `${cx.toFixed(1)}px`);
   stageContainer.style.setProperty("--reticle-cy", `${cy.toFixed(1)}px`);
   stageContainer.style.setProperty("--reticle-size", `${reticleSize.toFixed(1)}px`);
@@ -686,7 +699,110 @@ function computeStageGeometry() {
   if (hotspotLeadersSvg) {
     hotspotLeadersSvg.setAttribute("viewBox", `0 0 ${w} ${h}`);
   }
+  updateDynamicRingRadius(0, true);
   layoutReticlePhaseDots();
+}
+
+function samplePlantExtents() {
+  if (!plantRoot || !mixer || actions.length === 0 || !state.crop) return;
+  const dur = Math.max(0.1, state.durationSec || 6.25);
+  const samples = 21;
+  const prevTime = state.currentTime;
+  const box = new THREE.Box3();
+  const profile = [];
+
+  for (let i = 0; i < samples; i++) {
+    const t = (i / (samples - 1)) * dur;
+    for (const action of actions) {
+      const clipDur = action.getClip().duration || dur;
+      action.enabled = true;
+      action.paused = true;
+      action.time = Math.max(0, Math.min(t, Math.max(0, clipDur - 1e-5)));
+    }
+    mixer.update(0);
+    plantRoot.updateMatrixWorld(true);
+    box.setFromObject(plantRoot);
+    if (!box.isEmpty()) {
+      const halfW = Math.max(
+        0.04,
+        Math.abs(box.min.x),
+        Math.abs(box.max.x),
+        Math.abs(box.min.z),
+        Math.abs(box.max.z)
+      );
+      const midY = (box.min.y + box.max.y) * 0.5;
+      profile.push({ t, halfW, midY });
+    }
+  }
+
+  // Restore exact active playback timestamp
+  for (const action of actions) {
+    const clipDur = action.getClip().duration || dur;
+    action.enabled = true;
+    action.paused = true;
+    action.time = Math.max(0, Math.min(prevTime, Math.max(0, clipDur - 1e-5)));
+  }
+  mixer.update(0);
+  plantExtentProfile = profile;
+}
+
+function getInterpolatedPlantExtent(timeSec) {
+  if (!plantExtentProfile || plantExtentProfile.length === 0) {
+    return { halfW: 0.14, midY: 0 };
+  }
+  if (timeSec <= plantExtentProfile[0].t) return plantExtentProfile[0];
+  const last = plantExtentProfile[plantExtentProfile.length - 1];
+  if (timeSec >= last.t) return last;
+
+  for (let i = 0; i < plantExtentProfile.length - 1; i++) {
+    const a = plantExtentProfile[i];
+    const b = plantExtentProfile[i + 1];
+    if (timeSec >= a.t && timeSec <= b.t) {
+      const span = Math.max(1e-5, b.t - a.t);
+      const alpha = (timeSec - a.t) / span;
+      return {
+        halfW: a.halfW + (b.halfW - a.halfW) * alpha,
+        midY: a.midY + (b.midY - a.midY) * alpha,
+      };
+    }
+  }
+  return last;
+}
+
+function updateDynamicRingRadius(dt, snap = false) {
+  let screenHalf = stageGeo.plantScreenHalfW;
+  if (camera) {
+    camera.updateMatrixWorld();
+    const { halfW, midY } = getInterpolatedPlantExtent(state.currentTime);
+    tmpExtCenter.set(0, midY, 0);
+    tmpCamRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+    tmpExtSide.copy(tmpExtCenter).addScaledVector(tmpCamRight, halfW);
+    tmpExtCenter.project(camera);
+    tmpExtSide.project(camera);
+    if (tmpExtCenter.z >= -1 && tmpExtCenter.z <= 1) {
+      screenHalf = Math.max(18, Math.abs(tmpExtSide.x - tmpExtCenter.x) * 0.5 * stageGeo.w);
+    }
+  }
+  stageGeo.plantScreenHalfW = screenHalf;
+
+  const cosFlank = Math.cos((32 * Math.PI) / 180);
+  const rNeeded = (screenHalf + stageGeo.dotR + 16) / cosFlank;
+  const targetR = Math.max(stageGeo.minRPhase, Math.min(stageGeo.maxRPhase, rNeeded));
+  stageGeo.targetRPhase = targetR;
+
+  const prevR = stageGeo.rPhase;
+  const nextR = snap
+    ? targetR
+    : prevR + (targetR - prevR) * Math.min(1, Math.max(0.01, dt || 0.016) * 8.0);
+  stageGeo.rPhase = Math.max(stageGeo.minRPhase, Math.min(stageGeo.maxRPhase, nextR));
+
+  if (snap || Math.abs(stageGeo.rPhase - prevR) > 0.25) {
+    if (stageContainer) {
+      const reticleSize = stageGeo.rPhase / (245 / 800);
+      stageContainer.style.setProperty("--reticle-size", `${reticleSize.toFixed(1)}px`);
+    }
+    layoutReticlePhaseDots();
+  }
 }
 
 function resizeRenderer() {
@@ -736,27 +852,51 @@ function renderReticlePhaseRing() {
 
 function layoutReticlePhaseDots() {
   const n = reticleDotEls.length;
+  stageGeo.dotPositions = [];
   if (!n) return;
+  const leftCount = Math.ceil(n / 2);
+  const rightCount = n - leftCount;
+
   for (let idx = 0; idx < n; idx++) {
     const btn = reticleDotEls[idx];
-    const ang = -Math.PI / 2 + (idx / n) * Math.PI * 2;
-    const cosA = Math.cos(ang);
-    const sinA = Math.sin(ang);
-    const px = stageGeo.cx + cosA * stageGeo.rPhase;
-    const py = stageGeo.cy + sinA * stageGeo.rPhase;
+    const isLeft = idx < leftCount;
+    let deg;
+    if (isLeft) {
+      deg = leftCount === 1 ? 180 : 148 + (idx / (leftCount - 1)) * 64;
+    } else {
+      const j = idx - leftCount;
+      deg = rightCount === 1 ? 0 : 328 + (j / (rightCount - 1)) * 64;
+    }
+    const ang = (deg * Math.PI) / 180;
+    const px = stageGeo.cx + Math.cos(ang) * stageGeo.rPhase;
+    const py = stageGeo.cy + Math.sin(ang) * stageGeo.rPhase;
     btn.style.left = `${px.toFixed(1)}px`;
     btn.style.top = `${py.toFixed(1)}px`;
-    btn.dataset.quadrant =
-      sinA < -0.7 ? "top" : sinA > 0.7 ? "bottom" : cosA >= 0 ? "right" : "left";
+    const side = isLeft ? "left" : "right";
+    btn.dataset.quadrant = side;
+    stageGeo.dotPositions[idx] = { x: px, y: py, side };
   }
 }
 
 function updateReticleArcProgress(progress01) {
-  if (!reticleProgressArc || !state.crop) return;
+  if (!state.crop) return;
   const n = Math.max(2, (state.crop.phases || []).length);
+  const leftCount = Math.ceil(n / 2);
   const clamped = Math.max(0, Math.min(1, progress01));
-  const arcLen = clamped * ((n - 1) / n) * RETICLE_ARC_CIRCUM;
-  reticleProgressArc.style.strokeDasharray = `${arcLen.toFixed(1)} ${RETICLE_ARC_CIRCUM.toFixed(1)}`;
+
+  const leftEnd = (leftCount - 1) / Math.max(1, n - 1);
+  const rightStart = leftCount / Math.max(1, n - 1);
+  const leftFrac = leftEnd > 0 ? Math.max(0, Math.min(1, clamped / leftEnd)) : 1;
+  const rightFrac = 1 - rightStart > 0 ? Math.max(0, Math.min(1, (clamped - rightStart) / (1 - rightStart))) : 0;
+
+  if (reticleProgressLeft) {
+    const len = leftFrac * FLANK_ARC_LEN;
+    reticleProgressLeft.style.strokeDasharray = `${len.toFixed(1)} ${(FLANK_ARC_LEN + 8).toFixed(1)}`;
+  }
+  if (reticleProgressRight) {
+    const len = rightFrac * FLANK_ARC_LEN;
+    reticleProgressRight.style.strokeDasharray = `${len.toFixed(1)} ${(FLANK_ARC_LEN + 8).toFixed(1)}`;
+  }
 }
 
 function updateReticlePhaseRing(activeIdx) {
@@ -1135,8 +1275,8 @@ function updateHotspotPositions() {
       rightGroup = byX.slice(mid);
     }
 
-    const rKeepout = rPhase + dotR + 14;
     const minGap = 10;
+    const plantClear = Math.max(stageGeo.plantScreenHalfW + 16, rPhase * 0.56);
 
     for (const [side, grp] of [
       ["left", leftGroup],
@@ -1144,31 +1284,72 @@ function updateHotspotPositions() {
     ]) {
       if (grp.length === 0) continue;
       grp.sort((a, b) => a.ay - b.ay);
+      const sideDots = stageGeo.dotPositions.filter((d) => d.side === side);
+      const minDotY = sideDots.length ? Math.min(...sideDots.map((d) => d.y)) : cy;
+      const maxDotY = sideDots.length ? Math.max(...sideDots.map((d) => d.y)) : cy;
       const ys = grp.map((e) => Math.max(topSafe + e.ph * 0.5, Math.min(botSafe - e.ph * 0.5, e.ay)));
 
-      for (let passIdx = 0; passIdx < 4; passIdx++) {
-        for (let j = 1; j < grp.length; j++) {
-          const minY = ys[j - 1] + grp[j - 1].ph * 0.5 + grp[j].ph * 0.5 + minGap;
-          if (ys[j] < minY) ys[j] = minY;
-        }
-        for (let j = grp.length - 1; j >= 0; j--) {
-          const maxY = botSafe - grp[j].ph * 0.5;
-          if (ys[j] > maxY) ys[j] = maxY;
-          if (j > 0) {
-            const maxPrev = ys[j] - grp[j].ph * 0.5 - grp[j - 1].ph * 0.5 - minGap;
-            if (ys[j - 1] > maxPrev) ys[j - 1] = maxPrev;
+      const computeNeededXClear = (py, ph) => {
+        let xClear = plantClear;
+        for (const dot of sideDots) {
+          if (Math.abs(py - dot.y) < ph * 0.5 + dotR + 10) {
+            xClear = Math.max(xClear, Math.abs(dot.x - cx) + dotR + 12);
           }
         }
-        for (let j = 0; j < grp.length; j++) {
-          ys[j] = Math.max(topSafe + grp[j].ph * 0.5, Math.min(botSafe - grp[j].ph * 0.5, ys[j]));
+        return xClear;
+      };
+
+      const nudgeAboveOrBelowDots = (entry, py) => {
+        const xClear = computeNeededXClear(py, entry.ph);
+        const availLane = side === "left" ? cx - xClear - 10 : w - 10 - (cx + xClear);
+        if (availLane >= entry.pw || sideDots.length === 0) return py;
+
+        const aboveY = Math.max(topSafe + entry.ph * 0.5, minDotY - dotR - entry.ph * 0.5 - 10);
+        const belowY = Math.min(botSafe - entry.ph * 0.5, maxDotY + dotR + entry.ph * 0.5 + 10);
+        const aboveFree = aboveY <= minDotY - dotR - entry.ph * 0.5 - 8;
+        const belowFree = belowY >= maxDotY + dotR + entry.ph * 0.5 + 8;
+        if (aboveFree && belowFree) {
+          return Math.abs(aboveY - entry.ay) <= Math.abs(belowY - entry.ay) ? aboveY : belowY;
+        }
+        if (aboveFree) return aboveY;
+        if (belowFree) return belowY;
+        return py;
+      };
+
+      const relaxSideY = () => {
+        for (let passIdx = 0; passIdx < 4; passIdx++) {
+          for (let j = 1; j < grp.length; j++) {
+            const minY = ys[j - 1] + grp[j - 1].ph * 0.5 + grp[j].ph * 0.5 + minGap;
+            if (ys[j] < minY) ys[j] = minY;
+          }
+          for (let j = grp.length - 1; j >= 0; j--) {
+            const maxY = botSafe - grp[j].ph * 0.5;
+            if (ys[j] > maxY) ys[j] = maxY;
+            if (j > 0) {
+              const maxPrev = ys[j] - grp[j].ph * 0.5 - grp[j - 1].ph * 0.5 - minGap;
+              if (ys[j - 1] > maxPrev) ys[j - 1] = maxPrev;
+            }
+          }
+          for (let j = 0; j < grp.length; j++) {
+            ys[j] = Math.max(topSafe + grp[j].ph * 0.5, Math.min(botSafe - grp[j].ph * 0.5, ys[j]));
+          }
+        }
+      };
+
+      relaxSideY();
+      let nudged = false;
+      for (let j = 0; j < grp.length; j++) {
+        const ny = nudgeAboveOrBelowDots(grp[j], ys[j]);
+        if (Math.abs(ny - ys[j]) > 1) {
+          ys[j] = ny;
+          nudged = true;
         }
       }
+      if (nudged) relaxSideY();
 
       grp.forEach((entry, j) => {
         const py = ys[j];
-        const dyNear = Math.max(0, Math.abs(py - cy) - entry.ph * 0.5);
-        const chord = dyNear < rKeepout ? Math.sqrt(Math.max(0, rKeepout * rKeepout - dyNear * dyNear)) : 0;
-        const xClear = Math.max(chord, rPhase * 0.58);
+        const xClear = computeNeededXClear(py, entry.ph);
 
         let x1;
         let x2;
@@ -1638,6 +1819,7 @@ async function loadDataAndModel() {
       obj.material = nodeMat;
     }
   });
+  plantRoot = gltf.scene;
   scene.add(gltf.scene);
 
   mixer = new THREE.AnimationMixer(gltf.scene);
@@ -1652,6 +1834,8 @@ async function loadDataAndModel() {
     return action;
   });
   mixer.update(0);
+  samplePlantExtents();
+  updateDynamicRingRadius(0, true);
 
   if (statSize.textContent.includes("Загрузка")) {
     statSize.textContent = "GLB загружен";
@@ -1763,6 +1947,7 @@ function startLoop() {
       } else {
         renderer.render(scene, camera);
       }
+      updateDynamicRingRadius(dt, false);
       updateHotspotPositions();
     }
   }
