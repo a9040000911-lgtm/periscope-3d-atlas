@@ -79,9 +79,11 @@ const reticleProgressLeft = document.getElementById("reticle-progress-left");
 const reticleProgressRight = document.getElementById("reticle-progress-right");
 const reticlePhaseRing = document.getElementById("reticle-phase-ring");
 const hotspotLeadersSvg = document.getElementById("hotspot-leaders");
+const IS_DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+
 const hotspotsLayer = document.getElementById("hotspots-layer");
 const loadingOverlay = document.getElementById("loading-overlay");
-const loadingText = document.getElementById("loading-text");
+const loadingBarFill = document.getElementById("loading-bar-fill");
 const errorBanner = document.getElementById("error-banner");
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -242,9 +244,14 @@ function applyCropPalette(paletteObj) {
 }
 
 function showError(message) {
-  loadingOverlay.hidden = true;
+  if (loadingOverlay) loadingOverlay.hidden = true;
   errorBanner.hidden = false;
-  errorBanner.innerHTML = `<strong>Не удалось запустить 3D-сцену:</strong><br>${message}`;
+  if (IS_DEBUG) {
+    errorBanner.innerHTML = `<strong>Не удалось запустить 3D-сцену:</strong><br>${message}`;
+  } else {
+    errorBanner.innerHTML =
+      "<strong>Не удалось отобразить интерактивную схему культуры.</strong><br><small>Пожалуйста, обновите страницу или проверьте подключение к интернету.</small>";
+  }
 }
 
 // Ultra-fast zero-loop analytic TSL noise & organic spot distance (compiles in <10ms vs ~14s MaterialX 3D loops)
@@ -601,7 +608,7 @@ async function initScene() {
       scene.environment = hdrTex;
       scene.environmentIntensity = 0.90;
     } catch (hdrErr) {
-      console.warn("HDR environment load skipped:", hdrErr);
+      if (IS_DEBUG) console.warn("HDR environment load skipped:", hdrErr);
     }
   })();
 
@@ -1537,7 +1544,7 @@ async function ensureUltraAOPipeline() {
     renderPipeline.outputColorTransform = true;
     return true;
   } catch (pipeErr) {
-    console.warn("Ultra AO unavailable, keeping fast direct render:", pipeErr);
+    if (IS_DEBUG) console.warn("Ultra AO unavailable, keeping fast direct render:", pipeErr);
     renderPipeline = null;
     return false;
   }
@@ -1549,11 +1556,17 @@ function syncUltraAOState() {
   if (toggleSsaoBtn) {
     toggleSsaoBtn.classList.toggle("is-active", state.ultraAO);
     toggleSsaoBtn.setAttribute("aria-pressed", state.ultraAO ? "true" : "false");
-    toggleSsaoBtn.textContent = `Ультра AO: ${state.ultraAO ? "Вкл" : "Выкл"}`;
+    toggleSsaoBtn.textContent = `Объёмные тени: ${state.ultraAO ? "Вкл" : "Выкл"}`;
   }
 }
 
 function bindUI() {
+  if (IS_DEBUG) {
+    for (const el of document.querySelectorAll(".debug-only")) {
+      el.hidden = false;
+    }
+  }
+
   if (phaseSlider) {
     phaseSlider.addEventListener("input", () => {
       stopAutoplay();
@@ -1610,7 +1623,7 @@ function bindUI() {
   if (toggleSsaoBtn) {
     toggleSsaoBtn.addEventListener("click", async () => {
       if (!state.ultraAO) {
-        toggleSsaoBtn.textContent = "Ультра AO: …";
+        toggleSsaoBtn.textContent = "Объёмные тени: …";
         const ok = await ensureUltraAOPipeline();
         state.ultraAO = ok;
       } else {
@@ -1761,31 +1774,30 @@ async function loadDataAndModel() {
   renderPhaseButtons();
   selectPhase(0, true);
 
+  if (loadingBarFill) loadingBarFill.style.width = "18%";
+  if (canvas) canvas.classList.remove("is-ready");
+
   let expectedGlbBytes = 0;
   try {
     if (statsRes && statsRes.ok) {
       const stats = await statsRes.json();
       expectedGlbBytes = Number(stats.glb_bytes || 0);
-      const kb = (expectedGlbBytes / 1024).toFixed(0);
-      statSize.textContent = `GLB ${kb} КБ`;
-      statTris.textContent = `${stats.triangle_count.toLocaleString("ru-RU")} треуг.`;
+      if (IS_DEBUG && statSize && statTris) {
+        const kb = (expectedGlbBytes / 1024).toFixed(0);
+        statSize.textContent = `GLB ${kb} КБ`;
+        statTris.textContent = `${stats.triangle_count.toLocaleString("ru-RU")} треуг.`;
+      }
     }
   } catch {
-    statSize.textContent = "GLB готов";
+    if (IS_DEBUG && statSize) statSize.textContent = "GLB готов";
   }
 
-  loadingText.textContent = "Загружаем 3D-модель (0%)…";
   const loader = new GLTFLoader();
   const gltfPromise = loader.loadAsync(state.crop.model_url, (xhr) => {
     const total = xhr.total || expectedGlbBytes;
-    if (total > 0 && xhr.loaded > 0) {
-      const pct = Math.min(99, Math.round((xhr.loaded / total) * 100));
-      const loadedMb = (xhr.loaded / (1024 * 1024)).toFixed(1);
-      const totalMb = (total / (1024 * 1024)).toFixed(1);
-      loadingText.textContent =
-        pct >= 99
-          ? "Распаковываем геометрию и TSL-шейдеры…"
-          : `Загружаем 3D-модель: ${pct}% (${loadedMb} / ${totalMb} МБ)…`;
+    if (total > 0 && xhr.loaded > 0 && loadingBarFill) {
+      const pct = 18 + Math.min(70, Math.round((xhr.loaded / total) * 70));
+      loadingBarFill.style.width = `${pct}%`;
     }
   });
 
@@ -1837,10 +1849,25 @@ async function loadDataAndModel() {
   samplePlantExtents();
   updateDynamicRingRadius(0, true);
 
-  if (statSize.textContent.includes("Загрузка")) {
+  if (loadingBarFill) loadingBarFill.style.width = "95%";
+  if (typeof renderer.compileAsync === "function") {
+    try {
+      await renderer.compileAsync(scene, camera);
+    } catch {
+      // Fallback to direct first render
+    }
+  }
+  renderer.render(scene, camera);
+
+  if (loadingBarFill) loadingBarFill.style.width = "100%";
+  if (canvas) canvas.classList.add("is-ready");
+  if (loadingOverlay) {
+    loadingOverlay.classList.add("is-done");
+    loadingOverlay.hidden = true;
+  }
+  if (IS_DEBUG && statSize && statSize.textContent.includes("Загрузка")) {
     statSize.textContent = "GLB загружен";
   }
-  loadingOverlay.hidden = true;
 }
 
 function startLoop() {
@@ -1856,7 +1883,9 @@ function startLoop() {
     fpsCount += 1;
     fpsAccum += dt;
     if (fpsAccum >= 0.5) {
-      statFps.textContent = `${Math.round(fpsCount / fpsAccum)} FPS`;
+      if (IS_DEBUG && statFps) {
+        statFps.textContent = `${Math.round(fpsCount / fpsAccum)} FPS`;
+      }
       fpsCount = 0;
       fpsAccum = 0;
     }
@@ -1899,7 +1928,7 @@ function startLoop() {
       updateLiveMetrics(state.currentTime);
       updateReticleArcProgress(progress);
 
-      if (state.crop && readoutFrame) {
+      if (IS_DEBUG && state.crop && readoutFrame) {
         const currentFrame = Math.round(state.currentTime * (state.crop.fps || 24));
         readoutFrame.textContent = `Кадр ${currentFrame} / ${state.crop.total_frames}`;
       }
@@ -1938,7 +1967,7 @@ function startLoop() {
         try {
           renderPipeline.render();
         } catch (renderErr) {
-          console.warn("RenderPipeline runtime fallback:", renderErr);
+          if (IS_DEBUG) console.warn("RenderPipeline runtime fallback:", renderErr);
           state.ultraAO = false;
           renderPipeline = null;
           syncUltraAOState();
@@ -1962,9 +1991,11 @@ async function bootstrap() {
     await loadDataAndModel();
     startLoop();
   } catch (err) {
-    console.error(err);
+    if (IS_DEBUG) console.error(err);
     showError(
-      `${err?.message || err}<br><small>Откройте страницу через локальный сервер <code>python serve.py</code> и проверьте доступ к CDN Three.js.</small>`
+      IS_DEBUG
+        ? `${err?.message || err}<br><small>Откройте страницу через локальный сервер <code>python serve.py</code> и проверьте доступ к CDN Three.js.</small>`
+        : ""
     );
   }
 }

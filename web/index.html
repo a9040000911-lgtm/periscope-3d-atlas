@@ -59,12 +59,12 @@
       </div>
 
       <div class="telemetry-pill" id="telemetry-pill" aria-live="polite">
-        <span id="stat-size">Загрузка GLB…</span>
-        <span class="sep">·</span>
-        <span id="stat-tris">—</span>
-        <span class="sep">·</span>
-        <span id="stat-fps">— FPS</span>
-        <span class="sep">·</span>
+        <span class="debug-only" id="stat-size" hidden>Загрузка GLB…</span>
+        <span class="sep debug-only" hidden>·</span>
+        <span class="debug-only" id="stat-tris" hidden>—</span>
+        <span class="sep debug-only" hidden>·</span>
+        <span class="debug-only" id="stat-fps" hidden>— FPS</span>
+        <span class="sep debug-only" hidden>·</span>
         <span class="bbch-live" id="stat-bbch">BBCH 00–05</span>
       </div>
     </header>
@@ -102,8 +102,8 @@
               <button type="button" class="pill-btn toggle-btn is-active" id="toggle-hotspots" aria-pressed="true">
                 Радар угроз: Вкл
               </button>
-              <button type="button" class="pill-btn toggle-btn" id="toggle-ssao" aria-pressed="false" title="Включить экранное контактное затенение SSAO (требует мощный GPU)">
-                Ультра AO: Выкл
+              <button type="button" class="pill-btn toggle-btn" id="toggle-ssao" aria-pressed="false" title="Включить мягкие объёмные тени для повышенной детализации">
+                Объёмные тени: Выкл
               </button>
             </div>
           </div>
@@ -118,16 +118,15 @@
             <div class="stage-mini-readout">
               <span class="phase-tag-inline" id="readout-bbch">BBCH 00–05</span>
               <span id="readout-phase">Фаза 1 из 6</span>
-              <span class="sep mini-frame-sep">·</span>
-              <span id="readout-frame">Кадр 0 / 150</span>
+              <span class="sep mini-frame-sep debug-only" hidden>·</span>
+              <span class="debug-only" id="readout-frame" hidden>Кадр 0 / 150</span>
               <span class="sep mini-hint-sep">·</span>
               <span class="mini-hint">360° мышью · колёсико — масштаб</span>
             </div>
           </div>
 
-          <div class="loading-overlay" id="loading-overlay">
-            <div class="spinner" aria-hidden="true"></div>
-            <div id="loading-text">Загружаем 3D-модель культуры…</div>
+          <div class="loading-bar" id="loading-overlay" aria-hidden="true">
+            <div class="loading-bar-fill" id="loading-bar-fill"></div>
           </div>
 
           <div class="error-banner" id="error-banner" hidden role="alert"></div>
