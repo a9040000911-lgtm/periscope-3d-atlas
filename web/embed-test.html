@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Схема защиты сахарной свёклы — Корпоративный портал СЗР</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Noto Sans", "Inter", system-ui, sans-serif;
+      background: #ffffff;
+      color: #1e293b;
+      line-height: 1.55;
+    }
+    .host-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .host-logo {
+      font-weight: 800;
+      font-size: 18px;
+      color: #5f7800;
+    }
+    .host-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+    }
+    .host-swiper-mock {
+      margin: 18px 0 24px;
+      padding: 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .host-swiper-mock:focus-visible {
+      outline: 2px solid #7fca3f;
+    }
+    .host-Controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .host-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .host-spacer-below {
+      margin-top: 32px;
+      height: 1200px;
+      padding: 24px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px dashed #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <header class="host-header">
+    <div class="host-logo">АГРО-ПОРТАЛ ЗАКАЗЧИКА (Nuxt 3 + Swiper Mock)</div>
+    <div id="host-event-log" style="font-size: 12px; color: #475569;">Ожидание инициализации виджета…</div>
+  </header>
+
+  <div class="host-container">
+    <h1>Интегрированная схема защиты культур</h1>
+    <p>Проверка полной изоляции Shadow DOM, сохранения <code>document.title</code>, отсутствия конфликта клавиш со слайдером Swiper и свободного тач-скролла страницы.</p>
+
+    <!-- Simulated host Swiper slider listening to ArrowLeft / ArrowRight -->
+    <div class="host-swiper-mock" id="host-swiper" tabindex="0">
+      <span>Карусель препаратов сайта (фокус + стрелки ← / →):</span>
+      <strong id="swiper-slide-label" data-slide="0">Слайд 1 из 4</strong>
+    </div>
+
+    <div class="host-Controls">
+      <button class="host-btn" id="btn-host-beet" type="button">Культура: Сахарная свёкла</button>
+      <button class="host-btn" id="btn-host-lentil" type="button">Культура: Чечевица</button>
+      <button class="host-btn" id="btn-host-theme" type="button">Переключить тему (Light/Dark)</button>
+      <button class="host-btn" id="btn-host-cms" type="button">Обновить регламент из CMS</button>
+    </div>
+
+    <!-- Custom Element inside Shadow DOM -->
+    <periscope-crop-stage id="embedded-stage" crop="sugar_beet" theme="light" hide-topbar="true"></periscope-crop-stage>
+
+    <div class="host-spacer-below" id="below-fold-section">
+      <h2>Таблица регламентов применения СЗР (секция ниже экрана)</h2>
+      <p>Прокрутка вниз выключает рендер-цикл 3D через <code>IntersectionObserver</code> (0% нагрузки на GPU).</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import "./periscope-element.js";
+
+    const stageEl = document.getElementById("embedded-stage");
+    const logEl = document.getElementById("host-event-log");
+    const swiperEl = document.getElementById("host-swiper");
+    const slideLabel = document.getElementById("swiper-slide-label");
+
+    let slideIdx = 0;
+    window.addEventListener("keydown", (ev) => {
+      if (document.activeElement === swiperEl) {
+        if (ev.key === "ArrowRight") slideIdx = (slideIdx + 1) % 4;
+        if (ev.key === "ArrowLeft") slideIdx = (slideIdx + 3) % 4;
+        slideLabel.dataset.slide = String(slideIdx);
+        slideLabel.textContent = `Слайд ${slideIdx + 1} из 4`;
+      }
+    });
+
+    stageEl.addEventListener("periscope:ready", (ev) => {
+      logEl.textContent = `Готово: режим=${ev.detail.renderTier}, культура=${ev.detail.cropId}`;
+    });
+    stageEl.addEventListener("periscope:phasechange", (ev) => {
+      logEl.textContent = `Фаза: ${ev.detail.bbch} (${ev.detail.title})`;
+    });
+
+    document.getElementById("btn-host-beet").addEventListener("click", () => stageEl.setAttribute("crop", "sugar_beet"));
+    document.getElementById("btn-host-lentil").addEventListener("click", () => stageEl.setAttribute("crop", "lentil"));
+    document.getElementById("btn-host-theme").addEventListener("click", () => {
+      const next = stageEl.getAttribute("theme") === "light" ? "dark" : "light";
+      stageEl.setAttribute("theme", next);
+    });
+    document.getElementById("btn-host-cms").addEventListener("click", () => {
+      stageEl.setCatalogOverrides({
+        korneed_seed: {
+          protection_tip: "Протравитель Максим XL + Апрон XL (актуальная норма 2026 из CMS: 1,0 л/т семян).",
+          product_url: "/products/maxim-xl",
+          product_label: "Открыть паспорт препарата в каталоге →",
+        },
+      });
+    });
+  </script>
+</body>
+</html>

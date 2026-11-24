@@ -1,5 +1,5 @@
 {
-  "file": "farm_field_1k.hdr",
+  "file": "farm_field_512.hdr",
   "fallback_file": "daylight_field.hdr",
   "source": "polyhaven_cc0_farm_field_1k",
   "md5": "03fe310d5e14e3a65e1bb08d4c08720b",
@@ -7,5 +7,6 @@
     2.2,
     3.6,
     2.6
-  ]
+  ],
+  "fallback_hdri": "farm_field_1k.hdr"
 }

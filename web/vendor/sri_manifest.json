@@ -1,0 +1,49 @@
+{
+  "package": "three",
+  "version": "0.187.0",
+  "files_count": 10,
+  "total_bytes": 4129540,
+  "importmap_free": true,
+  "files": {
+    "vendor/three/build/three.core.js": {
+      "bytes": 1474799,
+      "integrity": "sha384-drH6BueSlcvoXCwAqWkNJvXwu2Ax3mnGOmZnIXaomedIw+uXSP9Bf/XIUINgLUW+"
+    },
+    "vendor/three/build/three.tsl.js": {
+      "bytes": 1065544,
+      "integrity": "sha384-VyVcUhUk57PM9xoXF/Ah2vOgQJAIYkTbSYzDikHPYtV2DQciYNXwBA47hvbClb4n"
+    },
+    "vendor/three/build/three.webgpu.js": {
+      "bytes": 1350894,
+      "integrity": "sha384-2xmYbH9fbsINy+3rUsoPqRaykPGm6eGvkAiAwQylRpZeoFwW05f3h0oWei5h9z9w"
+    },
+    "vendor/three/examples/jsm/controls/OrbitControls.js": {
+      "bytes": 40923,
+      "integrity": "sha384-fG7uF7AT/y5f0ZehRdpMGSKYqWHnyV81DBHwVXcNfI5gjW4fwlruiZxLu9WcI8Dt"
+    },
+    "vendor/three/examples/jsm/loaders/GLTFLoader.js": {
+      "bytes": 119867,
+      "integrity": "sha384-X+rUfr1bOAhBfm4AQ0m3HczNmW7c3NuHHSMcC2Qq3XlkySePrEXFKkKaRI0cTLYh"
+    },
+    "vendor/three/examples/jsm/loaders/HDRLoader.js": {
+      "bytes": 12085,
+      "integrity": "sha384-zcx2q61xTqv5GZjhHlVCVeGYSrrwkpDPEyaplAfEkl+MNv2OnyzKrKsCBrttn9WR"
+    },
+    "vendor/three/examples/jsm/tsl/display/SSAONode.js": {
+      "bytes": 12158,
+      "integrity": "sha384-mUFidLV4SwtIjdcN1PdU0nrWBwJek+fZ/v2fpWLaehaVtrEz8oqidyJ1sx2JbPVd"
+    },
+    "vendor/three/examples/jsm/tsl/display/depthAwareBlur.js": {
+      "bytes": 2566,
+      "integrity": "sha384-JWTUhry5MwTwjv6ZdeOhnqrBIZ+EY701AW18hQ6W8vxD+d3e3HgQHhlNHf6yQyGW"
+    },
+    "vendor/three/examples/jsm/utils/BufferGeometryUtils.js": {
+      "bytes": 39161,
+      "integrity": "sha384-A12nws8pFUOaxDXAH4uPpOUTP2LuO6/hR03x367zUlkW4OkVnZhnO2k0VEbD97BR"
+    },
+    "vendor/three/examples/jsm/utils/SkeletonUtils.js": {
+      "bytes": 11543,
+      "integrity": "sha384-CKhWF97M4X/WTKNzsH9L2yA2ggNQOSezr/nwvGDlruWeLlXTKZVEaURBUN9co1eO"
+    }
+  }
+}

@@ -10,6 +10,7 @@ assets/textures/*_roughness.png
 
 # Local Blender EEVEE dev renders & internal reference videos
 renders/
+dist/
 *.webm
 *.mp4
 

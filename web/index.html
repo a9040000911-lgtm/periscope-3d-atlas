@@ -1,48 +1,37 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="periscope-standalone-html">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Перископ — 3D-атлас фаз роста: Сахарная свекла</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <script>
     (function () {
-      var c = new URLSearchParams(window.location.search).get("crop") || "sugar_beet";
-      if (/^[a-z0-9_]+$/.test(c)) {
-        var l = document.createElement("link");
-        l.rel = "preload";
-        l.as = "fetch";
-        l.crossOrigin = "anonymous";
-        l.href = "../assets/" + c + ".glb";
-        document.head.appendChild(l);
-      }
+      var params = new URLSearchParams(window.location.search);
+      var c = params.get("crop") || "sugar_beet";
+      if (!/^[a-z0-9_]+$/.test(c)) c = "sugar_beet";
+      var posterLink = document.createElement("link");
+      posterLink.rel = "preload";
+      posterLink.as = "image";
+      posterLink.type = "image/webp";
+      posterLink.href = "../assets/fallback/" + c + "_phase_0.webp";
+      document.head.appendChild(posterLink);
     })();
   </script>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js" />
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.tsl.js" />
+  <link rel="modulepreload" href="./vendor/three/build/three.webgpu.js" />
+  <link rel="modulepreload" href="./vendor/three/build/three.tsl.js" />
   <link rel="stylesheet" href="./style.css" />
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js",
-        "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js",
-        "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.tsl.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
-      }
-    }
-  </script>
 </head>
-<body>
-  <div class="periscope-app">
-    <!-- Full-bleed photorealistic sunlit field & chernozem cutaway backdrop (no 3D dirt block) -->
-    <div class="field-backdrop" id="field-backdrop" aria-hidden="true">
-      <div class="sky-layer"></div>
-      <div class="subsoil-layer" id="subsoil-layer"></div>
-      <div class="horizon-seam" id="horizon-band"></div>
+<body class="periscope-standalone-page">
+  <div class="periscope-app" tabindex="0">
+    <!-- Full-bleed sunlit field & chernozem cutaway backdrop -->
+    <div class="field-backdrop" id="field-backdrop" data-role="field-backdrop" aria-hidden="true">
+      <div class="sky-layer" data-role="sky-layer"></div>
+      <div class="subsoil-layer" id="subsoil-layer" data-role="subsoil-layer"></div>
+      <div class="horizon-seam" id="horizon-band" data-role="horizon-band"></div>
     </div>
 
     <!-- Top compact bar -->
-    <header class="topbar">
+    <header class="topbar" data-role="topbar">
       <div class="brand-group">
         <div class="brand-mark" aria-hidden="true">П</div>
         <div>
@@ -53,41 +42,50 @@
 
       <div class="crop-badge">
         <span class="crop-dot" aria-hidden="true"></span>
-        <select id="crop-select" class="crop-select" aria-label="Выбор сельскохозяйственной культуры" hidden></select>
-        <span class="crop-name" id="crop-name">Сахарная свекла</span>
-        <span class="crop-latin" id="crop-latin">Beta vulgaris subsp. vulgaris</span>
+        <select id="crop-select" class="crop-select" data-role="crop-select" aria-label="Выбор сельскохозяйственной культуры" hidden></select>
+        <span class="crop-name" id="crop-name" data-role="crop-name">Сахарная свекла</span>
+        <span class="crop-latin" id="crop-latin" data-role="crop-latin">Beta vulgaris subsp. vulgaris</span>
       </div>
 
-      <div class="telemetry-pill" id="telemetry-pill" aria-live="polite">
-        <span class="debug-only" id="stat-size" hidden>Загрузка GLB…</span>
+      <div class="telemetry-pill" id="telemetry-pill" data-role="telemetry-pill" aria-live="polite">
+        <span class="debug-only" id="stat-size" data-role="stat-size" hidden>Загрузка…</span>
         <span class="sep debug-only" hidden>·</span>
-        <span class="debug-only" id="stat-tris" hidden>—</span>
+        <span class="debug-only" id="stat-tris" data-role="stat-tris" hidden>—</span>
         <span class="sep debug-only" hidden>·</span>
-        <span class="debug-only" id="stat-fps" hidden>— FPS</span>
+        <span class="debug-only" id="stat-fps" data-role="stat-fps" hidden>— FPS</span>
         <span class="sep debug-only" hidden>·</span>
-        <span class="bbch-live" id="stat-bbch">BBCH 00–05</span>
+        <span class="bbch-live" id="stat-bbch" data-role="stat-bbch">BBCH 00–05</span>
       </div>
     </header>
 
-    <!-- Main split-screen layout matching Periscope reference -->
+    <!-- Main split-screen layout -->
     <main class="workspace">
       <section class="stage-column" aria-label="3D-модель культуры">
-        <div class="stage-card" id="stage-container">
-          <!-- Concentric radar reticle behind/around the floating plant -->
-          <svg class="periscope-reticle" id="periscope-reticle" viewBox="0 0 800 800" aria-hidden="true">
+        <div class="stage-card" id="stage-container" data-role="stage-container">
+          <svg class="periscope-reticle" id="periscope-reticle" data-role="periscope-reticle" viewBox="0 0 800 800" aria-hidden="true">
             <circle cx="400" cy="400" r="145" />
             <circle cx="400" cy="400" r="245" />
             <path class="reticle-flank-track" d="M 192.2 529.8 A 245 245 0 0 1 192.2 270.2" />
             <path class="reticle-flank-track" d="M 607.8 270.2 A 245 245 0 0 1 607.8 529.8" />
-            <path class="reticle-progress-arc" id="reticle-progress-left" d="M 192.2 529.8 A 245 245 0 0 1 192.2 270.2" />
-            <path class="reticle-progress-arc" id="reticle-progress-right" d="M 607.8 270.2 A 245 245 0 0 1 607.8 529.8" />
+            <path class="reticle-progress-arc" id="reticle-progress-left" data-role="reticle-progress-left" d="M 192.2 529.8 A 245 245 0 0 1 192.2 270.2" />
+            <path class="reticle-progress-arc" id="reticle-progress-right" data-role="reticle-progress-right" d="M 607.8 270.2 A 245 245 0 0 1 607.8 529.8" />
             <circle cx="400" cy="400" r="345" stroke-dasharray="4 6" />
             <circle class="orb-dot dim" cx="298" cy="70" r="3.5" />
             <circle class="orb-dot dim" cx="725" cy="390" r="3.5" />
             <circle class="orb-dot dim" cx="120" cy="430" r="3.5" />
           </svg>
 
-          <canvas id="viewport-canvas"></canvas>
+          <!-- Instant SSR/Data-First transparent WebP poster & Level-3 Fallback stage -->
+          <img
+            class="stage-fallback-img"
+            id="stage-fallback-img"
+            data-role="stage-fallback-img"
+            src="../assets/fallback/sugar_beet_phase_0.webp"
+            alt="Сахарная свекла — BBCH 00–05"
+            fetchpriority="high"
+          />
+
+          <canvas id="viewport-canvas" class="viewport-canvas" data-role="viewport-canvas"></canvas>
 
           <div class="stage-controls-top">
             <div class="preset-bar" role="group" aria-label="Ракурсы камеры">
@@ -96,69 +94,68 @@
               <button type="button" class="pill-btn" data-preset="canopy">Листья</button>
             </div>
             <div class="toggle-group">
-              <button type="button" class="pill-btn toggle-btn is-active" id="toggle-symptoms" aria-pressed="true">
+              <button type="button" class="pill-btn toggle-btn is-active" id="toggle-symptoms" data-role="toggle-symptoms" aria-pressed="true">
                 Симптомы 3D: Вкл
               </button>
-              <button type="button" class="pill-btn toggle-btn is-active" id="toggle-hotspots" aria-pressed="true">
+              <button type="button" class="pill-btn toggle-btn is-active" id="toggle-hotspots" data-role="toggle-hotspots" aria-pressed="true">
                 Радар угроз: Вкл
               </button>
-              <button type="button" class="pill-btn toggle-btn" id="toggle-ssao" aria-pressed="false" title="Включить мягкие объёмные тени для повышенной детализации">
+              <button type="button" class="pill-btn toggle-btn" id="toggle-ssao" data-role="toggle-ssao" aria-pressed="false" title="Включить мягкие объёмные тени для повышенной детализации">
                 Объёмные тени: Выкл
               </button>
             </div>
           </div>
 
-          <svg class="hotspot-leaders" id="hotspot-leaders" aria-hidden="true"></svg>
-          <div class="reticle-phase-ring" id="reticle-phase-ring" role="tablist" aria-label="Фазы развития по кругу"></div>
-          <div class="hotspots-layer" id="hotspots-layer" aria-label="3D-метки угроз на растении"></div>
+          <svg class="hotspot-leaders" id="hotspot-leaders" data-role="hotspot-leaders" aria-hidden="true"></svg>
+          <div class="reticle-phase-ring" id="reticle-phase-ring" data-role="reticle-phase-ring" role="tablist" aria-label="Фазы развития по кругу"></div>
+          <div class="hotspots-layer" id="hotspots-layer" data-role="hotspots-layer" aria-label="3D-метки угроз на растении"></div>
 
           <!-- Compact bottom status pill + circular autoplay button -->
           <div class="stage-bottom-hud" aria-label="Статус и авто-рост">
-            <button type="button" class="autoplay-circle-btn" id="btn-autoplay" aria-label="Запустить авто-рост" title="Авто-рост по фазам">▶</button>
+            <button type="button" class="autoplay-circle-btn" id="btn-autoplay" data-role="btn-autoplay" aria-label="Запустить авто-рост" title="Авто-рост по фазам">▶</button>
             <div class="stage-mini-readout">
-              <span class="phase-tag-inline" id="readout-bbch">BBCH 00–05</span>
-              <span id="readout-phase">Фаза 1 из 6</span>
+              <span class="phase-tag-inline" id="readout-bbch" data-role="readout-bbch">BBCH 00–05</span>
+              <span id="readout-phase" data-role="readout-phase">Фаза 1 из 6</span>
               <span class="sep mini-frame-sep debug-only" hidden>·</span>
-              <span class="debug-only" id="readout-frame" hidden>Кадр 0 / 150</span>
+              <span class="debug-only readout-frame" id="readout-frame" data-role="readout-frame" hidden>Кадр 0 / 150</span>
               <span class="sep mini-hint-sep">·</span>
-              <span class="mini-hint">360° мышью · колёсико — масштаб</span>
+              <span class="mini-hint" data-role="mini-hint">360° мышью · колёсико — масштаб</span>
             </div>
           </div>
 
-          <div class="loading-bar" id="loading-overlay" aria-hidden="true">
-            <div class="loading-bar-fill" id="loading-bar-fill"></div>
+          <div class="loading-bar" id="loading-overlay" data-role="loading-overlay" aria-hidden="true">
+            <div class="loading-bar-fill" id="loading-bar-fill" data-role="loading-bar-fill"></div>
           </div>
 
-          <div class="error-banner" id="error-banner" hidden role="alert"></div>
+          <div class="error-banner" id="error-banner" data-role="error-banner" hidden role="alert"></div>
         </div>
       </section>
 
-      <!-- Right translucent slate BBCH matrix & threats drawer (Periscope style) -->
-      <aside class="info-column" id="info-panel" aria-label="Фазы развития и угрозы">
-        <div class="bbch-rail" id="phase-buttons" role="tablist" aria-label="Шкала фаз развития BBCH"></div>
+      <!-- Right BBCH matrix & threats drawer -->
+      <aside class="info-column" id="info-panel" data-role="info-panel" aria-label="Фазы развития и угрозы">
+        <div class="bbch-rail" id="phase-buttons" data-role="phase-buttons" role="tablist" aria-label="Шкала фаз развития BBCH"></div>
 
         <div class="phase-details-pane">
           <div class="phase-header-card">
             <div class="phase-meta-row">
-              <span class="bbch-badge" id="phase-bbch">BBCH 00–05</span>
-              <span class="maturity-pill" id="maturity-label">Набухание и старт корешка</span>
+              <span class="bbch-badge" id="phase-bbch" data-role="phase-bbch">BBCH 00–05</span>
+              <span class="maturity-pill" id="maturity-label" data-role="maturity-label">Набухание и старт корешка</span>
             </div>
-            <h2 class="phase-title" id="phase-title">Семя и прорастание</h2>
-            <p class="phase-summary" id="phase-summary"></p>
+            <h2 class="phase-title" id="phase-title" data-role="phase-title">Семя и прорастание</h2>
+            <p class="phase-summary" id="phase-summary" data-role="phase-summary"></p>
 
-            <!-- Live maturation indicators -->
             <div class="metrics-grid" aria-label="Динамика созревания">
               <div class="metric-box">
-                <span class="metric-label" id="metric-label-0">Сахаристость</span>
-                <span class="metric-val" id="metric-brix">0.0%</span>
+                <span class="metric-label" id="metric-label-0" data-role="metric-label-0">Сахаристость</span>
+                <span class="metric-val" id="metric-brix" data-role="metric-brix">0.0%</span>
               </div>
               <div class="metric-box">
-                <span class="metric-label" id="metric-label-1">Диаметр корня</span>
-                <span class="metric-val" id="metric-diam">4 мм</span>
+                <span class="metric-label" id="metric-label-1" data-role="metric-label-1">Диаметр корня</span>
+                <span class="metric-val" id="metric-diam" data-role="metric-diam">4 мм</span>
               </div>
               <div class="metric-box">
-                <span class="metric-label" id="metric-label-2">Листьев</span>
-                <span class="metric-val" id="metric-leaves">0 шт</span>
+                <span class="metric-label" id="metric-label-2" data-role="metric-label-2">Листьев</span>
+                <span class="metric-val" id="metric-leaves" data-role="metric-leaves">0 шт</span>
               </div>
             </div>
           </div>
@@ -166,9 +163,9 @@
           <div class="threats-section">
             <div class="threats-header">
               <h3>Вредители и болезни в фазе</h3>
-              <span class="threat-count" id="threat-count">0</span>
+              <span class="threat-count" id="threat-count" data-role="threat-count">0</span>
             </div>
-            <div class="threats-list" id="threats-list"></div>
+            <div class="threats-list" id="threats-list" data-role="threats-list"></div>
           </div>
         </div>
       </aside>
