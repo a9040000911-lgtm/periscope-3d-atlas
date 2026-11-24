@@ -11,6 +11,15 @@
       "ready": true
     },
     {
+      "id": "lentil",
+      "name": "Чечевица",
+      "latin": "Lens culinaris Medik.",
+      "archetype": "legume_pulse",
+      "passport_url": "../data/lentil.json",
+      "stats_url": "../assets/lentil_stats.json",
+      "ready": true
+    },
+    {
       "id": "winter_wheat",
       "name": "Озимая пшеница",
       "latin": "Triticum aestivum",

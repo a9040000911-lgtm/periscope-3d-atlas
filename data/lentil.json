@@ -1,0 +1,346 @@
+{
+  "crop_id": "lentil",
+  "name": "Чечевица",
+  "latin": "Lens culinaris Medik.",
+  "archetype": "legume_pulse",
+  "model_url": "../assets/lentil.glb",
+  "fps": 24,
+  "total_frames": 150,
+  "duration_sec": 6.25,
+  "camera_preset_labels": {
+    "overview": "Общий вид",
+    "root": "Корни и клубеньки",
+    "canopy": "Бобы и цветки"
+  },
+  "maturation_palette": {
+    "outer_fresh": "#e7f3d5",
+    "outer_mature": "#c9a84c",
+    "mid_fresh": "#eff8e0",
+    "mid_mature": "#cfb658",
+    "heart_fresh": "#e0faa8",
+    "heart_mature": "#c8bc66",
+    "pod_fresh": "#74b632",
+    "pod_mature": "#d6b562",
+    "root_early": "#f5ebd8",
+    "root_mature": "#d7c39c"
+  },
+  "metric_defs": [
+    { "key": "protein_pct", "label": "Белок в зерне", "unit": "%", "decimals": 1 },
+    { "key": "nodules_count", "label": "Клубеньков", "unit": " шт", "decimals": 0 },
+    { "key": "pods_count", "label": "Бобов", "unit": " шт", "decimals": 0 }
+  ],
+  "phases": [
+    {
+      "id": "phase_0",
+      "index": 0,
+      "bbch": "BBCH 00–05",
+      "title": "Семя и прорастание",
+      "short_label": "Семя",
+      "frame": 0,
+      "time_sec": 0.0,
+      "metrics": {
+        "protein_pct": 0.0,
+        "nodules_count": 0,
+        "pods_count": 0,
+        "maturity_label": "Набухание и старт корешка"
+      },
+      "summary": "Двояковыпуклое линзовидное семя набухает в почве и выпускает первичный корешок. У чечевицы подземный (гипогеальный) тип прорастания — семядоли остаются под землёй, защищая точку роста от весенних заморозков.",
+      "threats": [
+        {
+          "id": "fusarium_seed",
+          "icon_type": "fungus",
+          "name": "Фузариозная корневая гниль",
+          "latin": "Fusarium oxysporum / F. avenaceum",
+          "severity": "critical",
+          "target_zone": "Семя и зародышевый корешок",
+          "description": "Почвенные грибы вызывают побурение и загнивание первичного корешка до выхода проростка, резко снижая полевую всхожесть.",
+          "protection_tip": "Фунгицидный протравитель семян перед инокуляцией штаммами Rhizobium, соблюдение 4-летнего севооборота.",
+          "anchor": [-0.03, -0.15, 0.03],
+          "symptom": {
+            "mode": "rhizoctonia_rot",
+            "target": "root",
+            "radius": 0.14,
+            "cam_offset": [0.22, 0.06, 0.95]
+          }
+        },
+        {
+          "id": "lentil_wireworm",
+          "icon_type": "worm",
+          "name": "Проволочник",
+          "latin": "Agriotes spp.",
+          "severity": "high",
+          "target_zone": "Набухающее семя и подземный побег",
+          "description": "Личинки жуков-щелкунов повреждают набухшие семена и перегрызают молодой проросток до выхода на поверхность.",
+          "protection_tip": "Контроль пырея в предшественнике, сев в оптимально прогретую почву, краевой учёт численности.",
+          "anchor": [0.06, -0.22, 0.02],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "root",
+            "radius": 0.14,
+            "cam_offset": [0.26, -0.02, 0.95]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_1",
+      "index": 1,
+      "bbch": "BBCH 09–12",
+      "title": "Всходы и первые листья",
+      "short_label": "Всходы",
+      "frame": 30,
+      "time_sec": 1.25,
+      "metrics": {
+        "protein_pct": 0.0,
+        "nodules_count": 2,
+        "pods_count": 0,
+        "maturity_label": "Выход эпикотиля и первых листьев"
+      },
+      "summary": "На поверхность выходит тонкий эпикотиль с двумя чешуевидными прикорневыми листьями, вслед за которыми раскрываются первые парноперистые настоящие листья.",
+      "threats": [
+        {
+          "id": "sitona_adult",
+          "icon_type": "beetle",
+          "name": "Клубеньковый долгоносик (имаго)",
+          "latin": "Sitona lineatus",
+          "severity": "critical",
+          "target_zone": "Края молодых листочков и точка роста",
+          "description": "Жуки делают характерные фигурные полукруглые выгрызы по краям молодых листьев и могут уничтожить нежные всходы в сухую весну.",
+          "protection_tip": "Инсектицидная обработка по краевым полосам или всему полю при численности выше 10–15 жуков/м².",
+          "anchor": [0.11, 0.16, 0.04],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "leaf",
+            "radius": 0.18,
+            "cam_offset": [0.36, 0.24, 0.95]
+          }
+        },
+        {
+          "id": "seedling_root_rot",
+          "icon_type": "fungus",
+          "name": "Корневая гниль всходов",
+          "latin": "Pythium / Rhizoctonia solani",
+          "severity": "high",
+          "target_zone": "Корневая шейка и основание стебля",
+          "description": "Тёмно-бурая перетяжка у корневой шейки вызывает увядание, полегание и выпадение проростков очагами.",
+          "protection_tip": "Недопущение глубокой заделки семян (>4–5 см) и переуплотнения почвы, стартовые протравители.",
+          "anchor": [-0.04, -0.09, 0.04],
+          "symptom": {
+            "mode": "rhizoctonia_rot",
+            "target": "root",
+            "radius": 0.14,
+            "cam_offset": [-0.26, 0.02, 0.95]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_2",
+      "index": 2,
+      "bbch": "BBCH 14–25",
+      "title": "Ветвление и клубеньки",
+      "short_label": "Ветвление",
+      "frame": 60,
+      "time_sec": 2.5,
+      "metrics": {
+        "protein_pct": 0.0,
+        "nodules_count": 9,
+        "pods_count": 0,
+        "maturity_label": "Боковые побеги и симбиоз Rhizobium"
+      },
+      "summary": "Из нижних узлов отрастают боковые побеги, формируя ветвистый куст с перистыми листьями и усиками. На корнях активно развиваются розовые азотфиксирующие клубеньки Rhizobium.",
+      "threats": [
+        {
+          "id": "sitona_larvae",
+          "icon_type": "worm",
+          "name": "Личинки клубенькового долгоносика",
+          "latin": "Sitona spp. (larvae)",
+          "severity": "critical",
+          "target_zone": "Азотфиксирующие клубеньки на корнях",
+          "description": "Личинки выедают содержимое клубеньков Rhizobium, лишая чечевицу биологического азота и открывая ворота для фузариоза.",
+          "protection_tip": "Своевременный контроль имаго до яйцекладки, инокуляция высокоэффективными штаммами клубеньковых бактерий.",
+          "anchor": [0.09, -0.24, 0.06],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "root",
+            "radius": 0.20,
+            "cam_offset": [0.34, -0.04, 1.05]
+          }
+        },
+        {
+          "id": "lentil_weeds",
+          "icon_type": "weed",
+          "name": "Сорняки (низкая конкурентность)",
+          "latin": "Chenopodium / Sinapis / Avena",
+          "severity": "critical",
+          "target_zone": "Прикорневая зона и перехват света",
+          "description": "Чечевица медленно набирает стартовую биомассу и не выдерживает конкуренции с сорняками — потери урожая достигают 40–60%.",
+          "protection_tip": "Почвенные довсходовые гербициды + страховые противозлаковые и мягкие двудольные обработки в окно BBCH 14–16.",
+          "anchor": [-0.22, 0.05, 0.08],
+          "symptom": {
+            "mode": "none",
+            "target": "both",
+            "radius": 0.16,
+            "cam_offset": [-0.38, 0.24, 1.32]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_3",
+      "index": 3,
+      "bbch": "BBCH 31–55",
+      "title": "Стеблевание и бутонизация",
+      "short_label": "Бутонизация",
+      "frame": 90,
+      "time_sec": 3.75,
+      "metrics": {
+        "protein_pct": 4.2,
+        "nodules_count": 16,
+        "pods_count": 0,
+        "maturity_label": "Пик азотфиксации и закладка бутонов"
+      },
+      "summary": "Стебли вытягиваются, усики на концах сложных листьев сцепляют растения в устойчивый стеблестой, а в пазухах верхних листьев закладываются цветочные бутоны.",
+      "threats": [
+        {
+          "id": "ascochyta_foliar",
+          "icon_type": "fungus",
+          "name": "Аскохитоз чечевицы",
+          "latin": "Ascochyta lentis",
+          "severity": "critical",
+          "target_zone": "Листочки и стебли среднего яруса",
+          "description": "Светло-серые округлые пятна с тёмно-бурой каймой и чёрными пикнидами в центре вызывают осыпание листвы и переламывание стеблей.",
+          "protection_tip": "Профилактический фунгицид (стробилурины + триазолы / боскалид) в фазу бутонизации при влажной погоде.",
+          "anchor": [0.22, 0.34, 0.10],
+          "symptom": {
+            "mode": "cercospora_spots",
+            "target": "leaf",
+            "radius": 0.32,
+            "cam_offset": [0.50, 0.42, 1.15]
+          }
+        },
+        {
+          "id": "pea_aphid",
+          "icon_type": "aphid",
+          "name": "Гороховая тля",
+          "latin": "Acyrthosiphon pisum",
+          "severity": "high",
+          "target_zone": "Верхушки побегов и молодые бутоны",
+          "description": "Плотные колонии высасывают сок из точек роста, деформируют бутоны и переносят вирусную мозаику бобовых.",
+          "protection_tip": "Системные или трансламинарные афициды при заселении свыше 15–20% растений до начала массового цветения.",
+          "anchor": [-0.14, 0.50, 0.08],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "leaf",
+            "radius": 0.26,
+            "cam_offset": [-0.38, 0.62, 1.12]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_4",
+      "index": 4,
+      "bbch": "BBCH 61–69",
+      "title": "Цветение и завязь бобов",
+      "short_label": "Цветение",
+      "frame": 120,
+      "time_sec": 5.0,
+      "metrics": {
+        "protein_pct": 14.5,
+        "nodules_count": 18,
+        "pods_count": 6,
+        "maturity_label": "Массовое цветение и старт бобов"
+      },
+      "summary": "Раскрываются нежные бело-сиреневые мотыльковые цветки в пазухах листьев. Благодаря индетерминантному росту на нижних ярусах уже формируются первые плоские зелёные бобы.",
+      "threats": [
+        {
+          "id": "botrytis_mould",
+          "icon_type": "fungus",
+          "name": "Серая гниль (ботритис)",
+          "latin": "Botrytis cinerea",
+          "severity": "critical",
+          "target_zone": "Цветки, нижние листья и завязи",
+          "description": "В загущённом влажном посеве образуется пушистый серо-белый налёт на цветках и листьях, приводя к опадению завязей.",
+          "protection_tip": "Фунгицидная защита в начале цветения (карбоксамиды / флудиоксонил + ципродинил), недопущение загущения.",
+          "anchor": [-0.22, 0.44, 0.10],
+          "symptom": {
+            "mode": "powdery_mildew",
+            "target": "leaf",
+            "radius": 0.34,
+            "cam_offset": [-0.50, 0.54, 1.16]
+          }
+        },
+        {
+          "id": "pod_borer",
+          "icon_type": "moth",
+          "name": "Бобовая (акациевая) огнёвка",
+          "latin": "Etiella zinckenella",
+          "severity": "high",
+          "target_zone": "Молодые формирующиеся бобы",
+          "description": "Гусеницы вгрызаются в зелёные бобы и объедают развивающиеся семена, загрязняя боб паутиной и экскрементами.",
+          "protection_tip": "Мониторинг лёта бабочек, инсектицидная обработка в фазу массового образования бобов с учётом безопасности опылителей.",
+          "anchor": [0.20, 0.48, 0.10],
+          "symptom": {
+            "mode": "pest_damage",
+            "target": "both",
+            "radius": 0.28,
+            "cam_offset": [0.48, 0.56, 1.14]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase_5",
+      "index": 5,
+      "bbch": "BBCH 85–89",
+      "title": "Созревание бобов (уборка)",
+      "short_label": "Созревание",
+      "frame": 150,
+      "time_sec": 6.25,
+      "metrics": {
+        "protein_pct": 26.4,
+        "nodules_count": 12,
+        "pods_count": 14,
+        "maturity_label": "Побурение 75–85% бобов, налив белка"
+      },
+      "summary": "Плоские ромбические бобы (по 1–2 линзовидных семени в каждом) налились белком и приобретают золотисто-соломенный оттенок; листья нижнего и среднего ярусов подсыхают перед уборкой.",
+      "threats": [
+        {
+          "id": "ascochyta_pods",
+          "icon_type": "fungus",
+          "name": "Аскохитоз бобов и семян",
+          "latin": "Ascochyta lentis",
+          "severity": "critical",
+          "target_zone": "Створки созревающих бобов",
+          "description": "Пятнистость проникает через створку боба в зерно, вызывая побурение и сморщивание товарной чечевицы и потерю классности.",
+          "protection_tip": "Вторая профилактическая фунгицидная обработка при сыром наливе, своевременная десикация и уборка.",
+          "anchor": [0.16, 0.54, 0.12],
+          "symptom": {
+            "mode": "cercospora_spots",
+            "target": "leaf",
+            "radius": 0.34,
+            "cam_offset": [0.46, 0.60, 1.12]
+          }
+        },
+        {
+          "id": "lentil_bruchus",
+          "icon_type": "beetle",
+          "name": "Чечевичная зерновка (брухус)",
+          "latin": "Bruchus lentis",
+          "severity": "high",
+          "target_zone": "Созревающие бобы и зерно",
+          "description": "Личинки развиваются внутри семени чечевицы, выгрызая полость; заражённое зерно теряет пищевую и посевную ценность.",
+          "protection_tip": "Двукратная защита в фазу бутонизации и цветения, фумигация семенного материала после обмолота.",
+          "anchor": [-0.18, 0.42, 0.12],
+          "symptom": {
+            "mode": "phoma_rings",
+            "target": "both",
+            "radius": 0.28,
+            "cam_offset": [-0.46, 0.48, 1.14]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -162,25 +162,50 @@ const matHandles = {
   mid: null,
   heart: null,
   root: null,
+  pod: null,
+  flower: null,
+  nodule: null,
+  stem: null,
 };
 
 // Reactive TSL uniforms shared across upgraded MeshSSSNodeMaterial instances
 const uOuterSenescence = uniform(0.0);
+const uPodPhase = uniform(0.0);
 const uSymptomCenter = uniform(new THREE.Vector3(0, 0, 0));
 const uSymptomRadius = uniform(0.18);
 const uSymptomIntensity = uniform(0.0);
 const uSymptomMode = uniform(0.0); // 0=none, 1=rhizoctonia/korneed, 2=cercospora, 3=mildew, 4=phoma, 5=pest
 const uSymptomTarget = uniform(0.0); // 0=both, 1=root, 2=leaf
 
-const COLOR_OUTER_FRESH = new THREE.Color("#edf5df");
-const COLOR_OUTER_MATURE = new THREE.Color("#d8be56");
-const COLOR_MID_FRESH = new THREE.Color("#f5faef");
-const COLOR_MID_MATURE = new THREE.Color("#dce8a8");
-const COLOR_HEART_FRESH = new THREE.Color("#e2ffad");
-const COLOR_HEART_MATURE = new THREE.Color("#cce87a");
-const COLOR_ROOT_EARLY = new THREE.Color("#ffffff");
-const COLOR_ROOT_MATURE = new THREE.Color("#f4ecd8");
+const activePalette = {
+  outerFresh: new THREE.Color("#edf5df"),
+  outerMature: new THREE.Color("#d8be56"),
+  midFresh: new THREE.Color("#f5faef"),
+  midMature: new THREE.Color("#dce8a8"),
+  heartFresh: new THREE.Color("#e2ffad"),
+  heartMature: new THREE.Color("#cce87a"),
+  podFresh: new THREE.Color("#74b632"),
+  podMature: new THREE.Color("#d6b562"),
+  stemFresh: new THREE.Color("#e9f5d8"),
+  stemMature: new THREE.Color("#cfc274"),
+  rootEarly: new THREE.Color("#ffffff"),
+  rootMature: new THREE.Color("#f4ecd8"),
+};
 const tmpColor = new THREE.Color();
+
+function applyCropPalette(paletteObj) {
+  if (!paletteObj || typeof paletteObj !== "object") return;
+  if (paletteObj.outer_fresh) activePalette.outerFresh.set(paletteObj.outer_fresh);
+  if (paletteObj.outer_mature) activePalette.outerMature.set(paletteObj.outer_mature);
+  if (paletteObj.mid_fresh) activePalette.midFresh.set(paletteObj.mid_fresh);
+  if (paletteObj.mid_mature) activePalette.midMature.set(paletteObj.mid_mature);
+  if (paletteObj.heart_fresh) activePalette.heartFresh.set(paletteObj.heart_fresh);
+  if (paletteObj.heart_mature) activePalette.heartMature.set(paletteObj.heart_mature);
+  if (paletteObj.pod_fresh) activePalette.podFresh.set(paletteObj.pod_fresh);
+  if (paletteObj.pod_mature) activePalette.podMature.set(paletteObj.pod_mature);
+  if (paletteObj.root_early) activePalette.rootEarly.set(paletteObj.root_early);
+  if (paletteObj.root_mature) activePalette.rootMature.set(paletteObj.root_mature);
+}
 
 function showError(message) {
   loadingOverlay.hidden = true;
@@ -208,14 +233,23 @@ function fastSpots3D(p) {
   return length(cell);
 }
 
-function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex, hasVertexColor) {
-  const isLeaf = tier === "outer" || tier === "mid" || tier === "heart";
-  const isRoot = tier === "root";
+function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex, podThickTex, hasVertexColor) {
+  const isAboveGround =
+    tier === "outer" ||
+    tier === "mid" ||
+    tier === "heart" ||
+    tier === "stem" ||
+    tier === "pod" ||
+    tier === "flower";
+  const isUnderground = tier === "root" || tier === "nodule";
   // Keep Seed_PBR / Hypocotyl_PBR on lightweight glTF standard PBR (avoids redundant shader compilations)
-  if (!isLeaf && !isRoot) {
+  if (!isAboveGround && !isUnderground) {
     return srcMat;
   }
 
+  const isLeaf = tier === "outer" || tier === "mid" || tier === "heart";
+  const isRoot = tier === "root";
+  const isPod = tier === "pod";
   const nodeMat = new THREE.MeshSSSNodeMaterial();
   nodeMat.name = srcMat.name;
   nodeMat.map = srcMat.map || null;
@@ -230,10 +264,42 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
   const uMatTint = uniform(nodeMat.color.clone());
   const uRoughMul = uniform(nodeMat.roughness);
   const uSenWeight = uniform(tier === "outer" ? 1.0 : 0.0);
-  const uSssTint = uniform(
+  const uPodWeight = uniform(isPod ? 1.0 : 0.0);
+  const uBackfaceBlend = uniform(isLeaf ? 1.0 : 0.0);
+  const sssHex = isRoot
+    ? 0xd9c296
+    : tier === "nodule"
+      ? 0xf27668
+      : tier === "flower"
+        ? 0xf0eaff
+        : isPod
+          ? 0x90c63a
+          : tier === "stem"
+            ? 0x5ca322
+            : tier === "heart"
+              ? 0x6eb81e
+              : tier === "mid"
+                ? 0x3b9a14
+                : 0x4b8f12;
+  const uSssTint = uniform(new THREE.Color(sssHex));
+  const uSssAtten = uniform(
+    tier === "flower" ? 0.16 : isLeaf ? 0.09 : isPod ? 0.095 : tier === "nodule" ? 0.08 : 0.04
+  );
+  const uVelvetTint = uniform(
     new THREE.Color(
-      isRoot ? 0xd9c296 : tier === "heart" ? 0x6eb81e : tier === "mid" ? 0x3b9a14 : 0x4b8f12
+      tier === "flower"
+        ? 0xf5f0ff
+        : isPod
+          ? 0xe8dd99
+          : tier === "nodule"
+            ? 0xffb3a1
+            : isRoot
+              ? 0xdccaa8
+              : 0xc8e898
     )
+  );
+  const uVelvetStrength = uniform(
+    tier === "flower" ? 0.22 : isPod ? 0.14 : isLeaf ? 0.15 : tier === "nodule" ? 0.16 : tier === "stem" ? 0.10 : 0.05
   );
   nodeMat.userData.uMatTint = uMatTint;
   nodeMat.userData.uRoughMul = uRoughMul;
@@ -242,27 +308,34 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
   const vColRgb = hasVertexColor ? vertexColor().rgb : vec3(1.0, 1.0, 1.0);
   let baseCol = texRgb.mul(vColRgb).mul(uMatTint);
   let baseRough = srcMat.roughnessMap ? texture(srcMat.roughnessMap, uv()).g.mul(uRoughMul) : uRoughMul;
-  let clearcoatVal = float(isLeaf ? 0.16 : 0.06);
+  let clearcoatVal = float(isLeaf ? 0.18 : isPod ? 0.14 : 0.06);
 
-  if (isLeaf) {
-    nodeMat.clearcoat = 0.22;
+  // Zero-cost analytic grazing velvet pubescence rim (simulates backlit legume trichomes / silk petals!)
+  const rimOneMinus = clamp(float(1.0).sub(abs(normalView.z)), float(0.0), float(1.0));
+  const velvetRim = rimOneMinus.mul(rimOneMinus).mul(rimOneMinus).mul(uVelvetStrength);
+
+  if (isAboveGround) {
+    nodeMat.clearcoat = isLeaf ? 0.22 : isPod ? 0.14 : 0.06;
     nodeMat.clearcoatRoughness = 0.36;
-    nodeMat.sheen = 0.08;
-    nodeMat.sheenRoughness = 0.54;
-    nodeMat.sheenColor = new THREE.Color(0x8bc34a);
+    nodeMat.sheen = tier === "flower" ? 0.18 : isPod ? 0.12 : 0.10;
+    nodeMat.sheenRoughness = 0.50;
+    nodeMat.sheenColor = new THREE.Color(tier === "flower" ? 0xd9d2ff : isPod ? 0xd8c87a : 0x9bd258);
 
-    // Botanical adaxial (upper glossy deep-emerald) vs abaxial (lower paler matte) side differentiation
+    // Botanical adaxial/abaxial differentiation on leaf blades (uniform-gated so above-ground shares ONE shader!)
     const adaxialCol = baseCol.mul(vec3(0.95, 0.99, 0.94));
     const abaxialCol = mix(baseCol.mul(float(1.14)), vec3(0.42, 0.56, 0.24), float(0.24));
-    baseCol = select(frontFacing, adaxialCol, abaxialCol);
-    baseRough = select(frontFacing, baseRough.mul(float(0.86)), baseRough.mul(float(1.24)));
-    clearcoatVal = select(frontFacing, float(0.22), float(0.05));
+    const leafCol = select(frontFacing, adaxialCol, abaxialCol);
+    baseCol = mix(baseCol, leafCol, uBackfaceBlend);
+    const leafRough = select(frontFacing, baseRough.mul(float(0.86)), baseRough.mul(float(1.24)));
+    baseRough = mix(baseRough, leafRough, uBackfaceBlend);
+    const leafCoat = select(frontFacing, float(0.22), float(0.05));
+    clearcoatVal = mix(clearcoatVal, leafCoat, uBackfaceBlend);
 
-    // Unified edge-first senescence (uniform uSenWeight lets outer/mid/heart share ONE compiled shader!)
+    // Unified edge-first senescence on outer leaves + suture-first golden parchment ripening on legume pods
     const edgeDist = abs(uv().x.sub(float(0.5))).mul(float(2.0));
     const tipDist = clamp(uv().y.sub(float(0.26)).div(float(0.74)), float(0.0), float(1.0));
-    const senNoise = fastNoise3D(positionWorld.mul(float(16.0))).mul(float(0.20));
-    const edgeCoord = edgeDist.mul(float(0.68)).add(tipDist.mul(float(0.50))).add(senNoise);
+    const orgRipenNoise = fastNoise3D(positionWorld.mul(float(16.0))).mul(float(0.20));
+    const edgeCoord = edgeDist.mul(float(0.68)).add(tipDist.mul(float(0.50))).add(orgRipenNoise);
     const senActive = uOuterSenescence.mul(uSenWeight);
     const chlorosisMask = smoothstep(float(0.72), float(1.18), edgeCoord).mul(senActive);
     const crispBrownMask = smoothstep(float(0.96), float(1.28), edgeCoord)
@@ -273,46 +346,59 @@ function upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex
     baseRough = mix(baseRough, float(0.86), crispBrownMask.mul(float(0.85)));
     clearcoatVal = clearcoatVal.mul(float(1.0).sub(chlorosisMask.mul(float(0.75))));
 
-    // Calibrated Three.js 0.187.0 MeshSSSNodeMaterial translucency (vein-detailed backlit glow)
-    const thickSample = leafThickTex ? texture(leafThickTex, uv()).r : float(0.75);
+    // Organic suture- & beak-first drying amber edge gradient on ripening lentil pods
+    const podSutureMask = smoothstep(float(0.58), float(1.15), edgeDist.mul(float(0.85)).add(tipDist.mul(float(0.45))).add(orgRipenNoise))
+      .mul(uPodPhase)
+      .mul(uPodWeight);
+    baseCol = mix(baseCol, vec3(0.72, 0.56, 0.24), podSutureMask.mul(float(0.48)));
+    baseRough = mix(baseRough, float(0.78), podSutureMask.mul(float(0.55)));
+    // Soft backlit velvet pubescence rim highlight
+    baseCol = baseCol.add(uVelvetTint.mul(velvetRim));
+
+    // Calibrated Three.js 0.187.0 MeshSSSNodeMaterial translucency (veins on leaves; 2-seed silhouettes inside pods!)
+    const activeThickTex = isPod ? podThickTex : isLeaf ? leafThickTex : null;
+    const thickSample = activeThickTex ? texture(activeThickTex, uv()).r : float(tier === "flower" ? 0.94 : 0.45);
+    const podDryAtten = float(1.0).sub(uPodPhase.mul(uPodWeight).mul(float(0.62)));
     const sssSideBoost = select(frontFacing, float(1.0), float(1.18));
     nodeMat.thicknessColorNode = uSssTint
       .mul(thickSample)
       .mul(sssSideBoost)
+      .mul(podDryAtten)
       .mul(float(1.0).sub(crispBrownMask.mul(float(0.82))));
     nodeMat.thicknessDistortionNode = float(0.36);
     nodeMat.thicknessAmbientNode = float(0.0);
-    nodeMat.thicknessAttenuationNode = float(0.085);
-    nodeMat.thicknessPowerNode = float(3.2);
+    nodeMat.thicknessAttenuationNode = uSssAtten;
+    nodeMat.thicknessPowerNode = float(3.1);
     nodeMat.thicknessScaleNode = float(2.3);
 
-    // Deepened zero-cost rosette & crown funnel ambient occlusion (sculptural depth at 0ms GPU cost)
+    // Deepened zero-cost crown/canopy ambient occlusion (sculptural depth at 0ms GPU cost)
     const radialDist = positionWorld.xz.length();
     const heightAboveCrown = clamp(positionWorld.y.add(float(0.02)).div(float(0.30)), float(0.0), float(1.0));
     const radialOpen = clamp(radialDist.div(float(0.20)), float(0.0), float(1.0));
     nodeMat.aoNode = mix(
-      float(0.56),
+      float(0.62),
       float(1.0),
       clamp(heightAboveCrown.mul(float(0.60)).add(radialOpen.mul(float(0.56))), float(0.0), float(1.0))
     );
-  } else if (isRoot) {
-    nodeMat.clearcoat = 0.06;
-    nodeMat.clearcoatRoughness = 0.58;
-    nodeMat.sheen = 0.05;
-    nodeMat.sheenRoughness = 0.68;
-    nodeMat.sheenColor = new THREE.Color(0xeaddc4);
+  } else if (isUnderground) {
+    nodeMat.clearcoat = tier === "nodule" ? 0.10 : 0.06;
+    nodeMat.clearcoatRoughness = tier === "nodule" ? 0.48 : 0.58;
+    nodeMat.sheen = tier === "nodule" ? 0.12 : 0.05;
+    nodeMat.sheenRoughness = 0.62;
+    nodeMat.sheenColor = new THREE.Color(tier === "nodule" ? 0xf6b8a8 : 0xeaddc4);
+    baseCol = baseCol.add(uVelvetTint.mul(velvetRim));
 
-    const rThick = rootThickTex ? texture(rootThickTex, uv()).r : float(0.30);
+    const rThick = isRoot && rootThickTex ? texture(rootThickTex, uv()).r : float(0.62);
     nodeMat.thicknessColorNode = uSssTint.mul(rThick);
-    nodeMat.thicknessDistortionNode = float(0.24);
+    nodeMat.thicknessDistortionNode = float(0.26);
     nodeMat.thicknessAmbientNode = float(0.0);
-    nodeMat.thicknessAttenuationNode = float(0.04);
-    nodeMat.thicknessPowerNode = float(3.6);
-    nodeMat.thicknessScaleNode = float(1.15);
+    nodeMat.thicknessAttenuationNode = uSssAtten;
+    nodeMat.thicknessPowerNode = float(3.4);
+    nodeMat.thicknessScaleNode = float(tier === "nodule" ? 1.65 : 1.15);
   }
 
   // Fast uniform-branched GPU symptom overlay (zero 3D loops -> instant shader compile + 60 FPS)
-  const targetMatch = isRoot
+  const targetMatch = isUnderground
     ? select(uSymptomTarget.lessThan(float(1.5)), float(1.0), float(0.0))
     : select(uSymptomTarget.equal(float(0.0)).or(uSymptomTarget.greaterThan(float(1.5))), float(1.0), float(0.0));
 
@@ -817,27 +903,40 @@ function updateHotspotPositions() {
 
 function updateMaturationMaterials(progress) {
   const matPhase = Math.max(0, Math.min(1, (progress - 0.52) / 0.48));
+  const podPhase = Math.max(0, Math.min(1, (progress - 0.68) / 0.32));
   uOuterSenescence.value = matPhase;
+  uPodPhase.value = podPhase;
 
   if (matHandles.outer) {
-    tmpColor.copy(COLOR_OUTER_FRESH).lerp(COLOR_OUTER_MATURE, matPhase * 0.58);
+    tmpColor.copy(activePalette.outerFresh).lerp(activePalette.outerMature, matPhase * 0.65);
     matHandles.outer.color.copy(tmpColor);
     if (matHandles.outer.userData.uMatTint) matHandles.outer.userData.uMatTint.value.copy(tmpColor);
-    if (matHandles.outer.userData.uRoughMul) matHandles.outer.userData.uRoughMul.value = 0.95 + 0.32 * matPhase;
+    if (matHandles.outer.userData.uRoughMul) matHandles.outer.userData.uRoughMul.value = 0.95 + 0.35 * matPhase;
   }
   if (matHandles.mid) {
-    tmpColor.copy(COLOR_MID_FRESH).lerp(COLOR_MID_MATURE, matPhase * 0.50);
+    tmpColor.copy(activePalette.midFresh).lerp(activePalette.midMature, matPhase * 0.58);
     matHandles.mid.color.copy(tmpColor);
     if (matHandles.mid.userData.uMatTint) matHandles.mid.userData.uMatTint.value.copy(tmpColor);
-    if (matHandles.mid.userData.uRoughMul) matHandles.mid.userData.uRoughMul.value = 0.88 + 0.22 * matPhase;
+    if (matHandles.mid.userData.uRoughMul) matHandles.mid.userData.uRoughMul.value = 0.88 + 0.25 * matPhase;
   }
   if (matHandles.heart) {
-    tmpColor.copy(COLOR_HEART_FRESH).lerp(COLOR_HEART_MATURE, matPhase * 0.42);
+    tmpColor.copy(activePalette.heartFresh).lerp(activePalette.heartMature, matPhase * 0.42);
     matHandles.heart.color.copy(tmpColor);
     if (matHandles.heart.userData.uMatTint) matHandles.heart.userData.uMatTint.value.copy(tmpColor);
   }
+  if (matHandles.stem) {
+    tmpColor.copy(activePalette.stemFresh).lerp(activePalette.stemMature, podPhase * 0.55);
+    matHandles.stem.color.copy(tmpColor);
+    if (matHandles.stem.userData.uMatTint) matHandles.stem.userData.uMatTint.value.copy(tmpColor);
+  }
+  if (matHandles.pod) {
+    tmpColor.copy(activePalette.podFresh).lerp(activePalette.podMature, podPhase);
+    matHandles.pod.color.copy(tmpColor);
+    if (matHandles.pod.userData.uMatTint) matHandles.pod.userData.uMatTint.value.copy(tmpColor);
+    if (matHandles.pod.userData.uRoughMul) matHandles.pod.userData.uRoughMul.value = 0.85 + 0.40 * podPhase;
+  }
   if (matHandles.root) {
-    tmpColor.copy(COLOR_ROOT_EARLY).lerp(COLOR_ROOT_MATURE, progress * 0.65);
+    tmpColor.copy(activePalette.rootEarly).lerp(activePalette.rootMature, progress * 0.65);
     matHandles.root.color.copy(tmpColor);
     if (matHandles.root.userData.uMatTint) matHandles.root.userData.uMatTint.value.copy(tmpColor);
   }
@@ -1013,24 +1112,40 @@ async function resolveCropConfig() {
 }
 
 async function loadDataAndModel() {
-  // Start SSS thickness maps immediately in parallel with JSON metadata (zero Draco WASM overhead!)
   const texLoader = new THREE.TextureLoader();
-  const loadLinearMap = async (url) => {
+  const loadLinearMap = async (url, fallbackUrl = null) => {
     try {
       const tex = await texLoader.loadAsync(url);
       tex.flipY = false;
       tex.colorSpace = THREE.NoColorSpace;
       return tex;
     } catch {
+      if (fallbackUrl) {
+        return loadLinearMap(fallbackUrl, null);
+      }
       return null;
     }
   };
+
+  const { cropId, passportUrl, statsUrl } = await resolveCropConfig();
+  const leafThickUrl =
+    cropId === "sugar_beet"
+      ? "../assets/textures/leaf_thickness.png"
+      : `../assets/textures/${cropId}_leaf_thickness.png`;
+  const rootThickUrl =
+    cropId === "sugar_beet"
+      ? "../assets/textures/root_thickness.png"
+      : `../assets/textures/${cropId}_root_thickness.png`;
+
+  const podThickUrl =
+    cropId === "sugar_beet" ? null : `../assets/textures/${cropId}_pod_thickness.png`;
+
   const thicknessPromise = Promise.all([
-    loadLinearMap("../assets/textures/leaf_thickness.png"),
-    loadLinearMap("../assets/textures/root_thickness.png"),
+    loadLinearMap(leafThickUrl, "../assets/textures/leaf_thickness.png"),
+    loadLinearMap(rootThickUrl, "../assets/textures/root_thickness.png"),
+    podThickUrl ? loadLinearMap(podThickUrl, null) : Promise.resolve(null),
   ]);
 
-  const { passportUrl, statsUrl } = await resolveCropConfig();
   const [cropRes, statsRes] = await Promise.all([
     fetch(passportUrl),
     fetch(statsUrl).catch(() => null),
@@ -1040,6 +1155,29 @@ async function loadDataAndModel() {
   }
   state.crop = await cropRes.json();
   state.durationSec = state.crop.duration_sec || 6.25;
+  applyCropPalette(state.crop.maturation_palette);
+
+  if (state.crop.archetype === "legume_pulse") {
+    CAMERA_PRESETS.overview.pos.set(0.42, 0.20, 3.05);
+    CAMERA_PRESETS.overview.target.set(0.0, 0.04, 0.0);
+    CAMERA_PRESETS.root.pos.set(0.28, -0.26, 1.65);
+    CAMERA_PRESETS.root.target.set(0.0, -0.32, 0.0);
+    CAMERA_PRESETS.canopy.pos.set(0.50, 0.70, 1.78);
+    CAMERA_PRESETS.canopy.target.set(0.0, 0.42, 0.0);
+    if (camera && controls) {
+      camera.position.copy(CAMERA_PRESETS.overview.pos);
+      controls.target.copy(CAMERA_PRESETS.overview.target);
+      state.cameraGoalPos.copy(CAMERA_PRESETS.overview.pos);
+      state.cameraGoalTarget.copy(CAMERA_PRESETS.overview.target);
+    }
+  }
+
+  if (state.crop.camera_preset_labels && typeof state.crop.camera_preset_labels === "object") {
+    for (const btn of presetButtons) {
+      const label = state.crop.camera_preset_labels[btn.dataset.preset];
+      if (label) btn.textContent = label;
+    }
+  }
 
   if (cropNameEl) cropNameEl.textContent = state.crop.name;
   if (cropLatinEl) cropLatinEl.textContent = state.crop.latin;
@@ -1084,7 +1222,7 @@ async function loadDataAndModel() {
     }
   });
 
-  const [[leafThickTex, rootThickTex], gltf] = await Promise.all([thicknessPromise, gltfPromise]);
+  const [[leafThickTex, rootThickTex, podThickTex], gltf] = await Promise.all([thicknessPromise, gltfPromise]);
 
   const upgradedMaterials = new Map();
   gltf.scene.traverse((obj) => {
@@ -1096,12 +1234,16 @@ async function loadDataAndModel() {
       if (srcMat.name === "Outer_Leaf_PBR") tier = "outer";
       else if (srcMat.name === "Mid_Leaf_PBR") tier = "mid";
       else if (srcMat.name === "Heart_Leaf_PBR") tier = "heart";
+      else if (srcMat.name === "Stem_PBR") tier = "stem";
+      else if (srcMat.name === "Pod_PBR") tier = "pod";
+      else if (srcMat.name === "Flower_PBR") tier = "flower";
       else if (srcMat.name === "Taproot_PBR") tier = "root";
+      else if (srcMat.name === "Nodule_PBR") tier = "nodule";
 
       let nodeMat = upgradedMaterials.get(srcMat);
       if (!nodeMat) {
         const hasVCol = Boolean(obj.geometry && obj.geometry.attributes && obj.geometry.attributes.color);
-        nodeMat = upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex, hasVCol);
+        nodeMat = upgradeToPhotorealNodeMaterial(srcMat, tier, leafThickTex, rootThickTex, podThickTex, hasVCol);
         upgradedMaterials.set(srcMat, nodeMat);
         if (tier !== "other") {
           matHandles[tier] = nodeMat;

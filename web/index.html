@@ -5,7 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Перископ — 3D-атлас фаз роста: Сахарная свекла</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="preload" as="fetch" href="../assets/sugar_beet.glb" crossorigin />
+  <script>
+    (function () {
+      var c = new URLSearchParams(window.location.search).get("crop") || "sugar_beet";
+      if (/^[a-z0-9_]+$/.test(c)) {
+        var l = document.createElement("link");
+        l.rel = "preload";
+        l.as = "fetch";
+        l.crossOrigin = "anonymous";
+        l.href = "../assets/" + c + ".glb";
+        document.head.appendChild(l);
+      }
+    })();
+  </script>
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.tsl.js" />
   <link rel="stylesheet" href="./style.css" />
@@ -169,7 +181,7 @@
 
           <div class="loading-overlay" id="loading-overlay">
             <div class="spinner" aria-hidden="true"></div>
-            <div id="loading-text">Загружаем PBR-модель сахарной свеклы…</div>
+            <div id="loading-text">Загружаем 3D-модель культуры…</div>
           </div>
 
           <div class="error-banner" id="error-banner" hidden role="alert"></div>

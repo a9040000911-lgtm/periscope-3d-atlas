@@ -1,0 +1,114 @@
+{
+  "crop_id": "lentil",
+  "blender_version": "5.2.2 LTS",
+  "object_count": 94,
+  "triangle_count": 53652,
+  "glb_path": "E:\\Videos\\перископ\\assets\\lentil.glb",
+  "glb_bytes": 4092660,
+  "blend_path": "E:\\Videos\\перископ\\assets\\lentil.blend",
+  "fps": 24,
+  "frame_range": [
+    0,
+    150
+  ],
+  "audit_mode": "full_31_frames",
+  "audit_frames_checked": 31,
+  "leaf_overlap_pairs": [],
+  "leaf_blade_root_clipping": [],
+  "floating_leaf_bases": [],
+  "floating_rootlet_bases": [],
+  "pod_stem_overlaps": [],
+  "pod_leaf_overlaps": [],
+  "pod_pod_overlaps": [],
+  "flower_overlaps": [],
+  "leaf_stem_overlaps": [],
+  "stem_root_disconnected": [],
+  "phase_bounds": {
+    "phase_0": {
+      "frame": 0,
+      "gltf_min": [
+        -0.0624,
+        -0.241,
+        -0.0726
+      ],
+      "gltf_max": [
+        0.0624,
+        -0.0685,
+        0.0726
+      ]
+    },
+    "phase_1": {
+      "frame": 30,
+      "gltf_min": [
+        -0.0614,
+        -0.3606,
+        -0.0718
+      ],
+      "gltf_max": [
+        0.104,
+        0.2043,
+        0.0918
+      ]
+    },
+    "phase_2": {
+      "frame": 60,
+      "gltf_min": [
+        -0.187,
+        -0.5193,
+        -0.1414
+      ],
+      "gltf_max": [
+        0.1783,
+        0.4283,
+        0.2259
+      ]
+    },
+    "phase_3": {
+      "frame": 90,
+      "gltf_min": [
+        -0.286,
+        -0.6347,
+        -0.2419
+      ],
+      "gltf_max": [
+        0.2601,
+        0.6161,
+        0.2534
+      ]
+    },
+    "phase_4": {
+      "frame": 120,
+      "gltf_min": [
+        -0.4276,
+        -0.6924,
+        -0.3665
+      ],
+      "gltf_max": [
+        0.4319,
+        0.7724,
+        0.3409
+      ]
+    },
+    "phase_5": {
+      "frame": 150,
+      "gltf_min": [
+        -0.4338,
+        -0.7894,
+        -0.4049
+      ],
+      "gltf_max": [
+        0.4593,
+        0.8179,
+        0.3465
+      ]
+    }
+  },
+  "renders": [
+    "E:\\Videos\\перископ\\renders\\lentil_phase_0.png",
+    "E:\\Videos\\перископ\\renders\\lentil_phase_1.png",
+    "E:\\Videos\\перископ\\renders\\lentil_phase_2.png",
+    "E:\\Videos\\перископ\\renders\\lentil_phase_3.png",
+    "E:\\Videos\\перископ\\renders\\lentil_phase_4.png",
+    "E:\\Videos\\перископ\\renders\\lentil_phase_5.png"
+  ]
+}

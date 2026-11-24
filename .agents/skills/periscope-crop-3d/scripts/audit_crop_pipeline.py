@@ -45,6 +45,14 @@ REQUIRED_STAT_LISTS = (
     "floating_leaf_bases",
     "floating_rootlet_bases",
 )
+EXTENDED_STAT_LISTS = (
+    "pod_stem_overlaps",
+    "pod_leaf_overlaps",
+    "pod_pod_overlaps",
+    "flower_overlaps",
+    "leaf_stem_overlaps",
+    "stem_root_disconnected",
+)
 DEPRECATED_MODEL_RE = re.compile(r"gemini" + r"-(?:1\.5|2\.0|2\.5)", re.IGNORECASE)
 ANCHOR_BOUNDS_MARGIN = 0.16
 
@@ -301,6 +309,11 @@ def audit_export_stats(
             warnings.append(f"{stats_path.name}: missing geometric QA field '{key}'.")
         elif isinstance(val, list) and len(val) > 0:
             errors.append(f"{stats_path.name}: QA failure — {key} has {len(val)} issue(s): {val[:5]}")
+
+    for key in EXTENDED_STAT_LISTS:
+        val = stats.get(key)
+        if isinstance(val, list) and len(val) > 0:
+            errors.append(f"{stats_path.name}: Extended QA failure — {key} has {len(val)} issue(s): {val[:5]}")
 
     glb_bytes = int(stats.get("glb_bytes", 0))
     if glb_bytes <= 0:
