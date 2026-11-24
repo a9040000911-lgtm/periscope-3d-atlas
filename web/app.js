@@ -153,6 +153,8 @@ let scene = null;
 let camera = null;
 let controls = null;
 let mixer = null;
+let fillLightRef = null;
+let hemiLightRef = null;
 let actions = [];
 let hotspotItems = [];
 let targetMarkerGroup = null;
@@ -520,6 +522,7 @@ async function initScene() {
 
   // Outdoor sunlight aligned with farm_field HDRI + sky-to-chernozem bounce + crisp soft self-shadows
   const hemi = new THREE.HemisphereLight(0xe4f3ff, 0x3b2c1e, 0.48);
+  hemiLightRef = hemi;
   scene.add(hemi);
 
   const shadowRes = isMobile ? 1024 : 2048;
@@ -572,6 +575,7 @@ async function initScene() {
 
   const fillLight = new THREE.DirectionalLight(0xd2e6ff, 0.62);
   fillLight.position.set(-2.4, 1.3, 2.2);
+  fillLightRef = fillLight;
   scene.add(fillLight);
 
   const rimLight = new THREE.DirectionalLight(0xf3fee4, 1.10);
@@ -974,6 +978,65 @@ function toggleAutoplay() {
   }
 }
 
+async function ensureUltraAOPipeline() {
+  if (renderPipeline) return true;
+  if (!renderer || !scene || !camera || typeof THREE.RenderPipeline !== "function") return false;
+  try {
+    const { ssao } = await import("three/addons/tsl/display/SSAONode.js");
+    const isMobile = window.innerWidth < 768;
+
+    const prePass = pass(scene, camera);
+    prePass.transparent = false;
+    prePass.setMRT(mrt({ output: packNormalToRGB(normalView) }));
+    const normalTex = prePass.getTexture("output");
+    normalTex.type = THREE.UnsignedByteType;
+    const prePassNormal = sample((u) => unpackRGBToNormal(prePass.getTextureNode().sample(u)));
+    const prePassDepth = prePass.getTextureNode("depth");
+
+    const aoPass = ssao(prePassDepth, prePassNormal, camera);
+    aoPass.resolutionScale = isMobile ? 0.5 : 0.75;
+    aoPass.samples.value = isMobile ? 12 : 16;
+    aoPass.radius.value = 0.085;
+    aoPass.intensity.value = 2.4;
+    if (aoPass.bias) aoPass.bias.value = 0.015;
+    aoPass.blurEnabled = true;
+    if (aoPass.blurSharpness) aoPass.blurSharpness.value = 12.0;
+
+    const aoSample = clamp(aoPass.getTextureNode().sample(screenUV).r, float(0.0), float(1.0));
+
+    const scenePass = pass(scene, camera);
+    scenePass.options.samples = isMobile ? 2 : 4;
+    scenePass.contextNode = builtinAOContext(aoSample);
+
+    // Composite sculptural crevice darkening into direct-lit RGB while preserving transparent canvas alpha
+    const sceneColor = scenePass.getTextureNode("output");
+    const creviceFactor = mix(
+      float(0.42),
+      float(1.0),
+      smoothstep(float(0.08), float(0.96), aoSample)
+    );
+    const finalOutput = vec4(sceneColor.rgb.mul(creviceFactor), sceneColor.a);
+
+    renderPipeline = new THREE.RenderPipeline(renderer, finalOutput);
+    renderPipeline.outputColorTransform = true;
+    return true;
+  } catch (pipeErr) {
+    console.warn("Ultra AO unavailable, keeping fast direct render:", pipeErr);
+    renderPipeline = null;
+    return false;
+  }
+}
+
+function syncUltraAOState() {
+  if (fillLightRef) fillLightRef.intensity = state.ultraAO ? 0.44 : 0.62;
+  if (hemiLightRef) hemiLightRef.intensity = state.ultraAO ? 0.54 : 0.48;
+  if (toggleSsaoBtn) {
+    toggleSsaoBtn.classList.toggle("is-active", state.ultraAO);
+    toggleSsaoBtn.setAttribute("aria-pressed", state.ultraAO ? "true" : "false");
+    toggleSsaoBtn.textContent = `Ультра AO: ${state.ultraAO ? "Вкл" : "Выкл"}`;
+  }
+}
+
 function bindUI() {
   phaseSlider.addEventListener("input", () => {
     stopAutoplay();
@@ -1005,39 +1068,6 @@ function bindUI() {
     });
   }
 
-async function ensureUltraAOPipeline() {
-  if (renderPipeline) return true;
-  if (!renderer || !scene || !camera || typeof THREE.RenderPipeline !== "function") return false;
-  try {
-    const { ssao } = await import("three/addons/tsl/display/SSAONode.js");
-    const prePass = pass(scene, camera);
-    prePass.transparent = false;
-    prePass.setMRT(mrt({ output: packNormalToRGB(normalView) }));
-    const normalTex = prePass.getTexture("output");
-    normalTex.type = THREE.UnsignedByteType;
-    const prePassNormal = sample((u) => unpackRGBToNormal(prePass.getTextureNode().sample(u)));
-    const prePassDepth = prePass.getTextureNode("depth");
-
-    const aoPass = ssao(prePassDepth, prePassNormal, camera);
-    aoPass.resolutionScale = 0.5;
-    aoPass.samples.value = 10;
-    aoPass.radius.value = 0.18;
-    aoPass.intensity.value = 1.35;
-
-    const scenePass = pass(scene, camera);
-    scenePass.options.samples = 4;
-    scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r);
-
-    renderPipeline = new THREE.RenderPipeline(renderer, scenePass);
-    renderPipeline.outputColorTransform = true;
-    return true;
-  } catch (pipeErr) {
-    console.warn("Ultra AO unavailable, keeping fast direct render:", pipeErr);
-    renderPipeline = null;
-    return false;
-  }
-}
-
   if (toggleSsaoBtn) {
     toggleSsaoBtn.addEventListener("click", async () => {
       if (!state.ultraAO) {
@@ -1047,9 +1077,7 @@ async function ensureUltraAOPipeline() {
       } else {
         state.ultraAO = false;
       }
-      toggleSsaoBtn.classList.toggle("is-active", state.ultraAO);
-      toggleSsaoBtn.setAttribute("aria-pressed", state.ultraAO ? "true" : "false");
-      toggleSsaoBtn.textContent = `Ультра AO: ${state.ultraAO ? "Вкл" : "Выкл"}`;
+      syncUltraAOState();
     });
   }
 
@@ -1368,6 +1396,7 @@ function startLoop() {
           console.warn("RenderPipeline runtime fallback:", renderErr);
           state.ultraAO = false;
           renderPipeline = null;
+          syncUltraAOState();
           renderer.render(scene, camera);
         }
       } else {
