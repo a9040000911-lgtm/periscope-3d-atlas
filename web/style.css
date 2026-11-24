@@ -38,58 +38,80 @@ body {
   overflow: hidden;
 }
 
-/* Full-bleed atmospheric field & dark subsoil backdrop */
+/* Full-bleed photorealistic sunlit farmland & dark chernozem soil cutaway backdrop */
 .field-backdrop {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
+  background: #120d09;
 }
 
 .sky-layer {
   position: absolute;
-  inset: 0 0 calc(100% - var(--soil-line-y)) 0;
-  background: linear-gradient(
-    180deg,
-    #4e89b8 0%,
-    #78add3 48%,
-    #b6d2e4 88%,
-    #cfe0da 100%
-  );
-  transition: bottom 0.08s linear;
-}
-
-.horizon-band {
-  position: absolute;
   left: 0;
   right: 0;
-  top: calc(var(--soil-line-y) - 110px);
-  height: 185px;
-  transition: top 0.08s linear;
-}
-
-.horizon-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+  top: 0;
+  bottom: calc(100% - var(--soil-line-y) - 10px);
+  background-color: #6ea3cc;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(16, 30, 44, 0.22) 0%,
+      rgba(16, 28, 40, 0.06) 44%,
+      rgba(22, 18, 12, 0.08) 84%,
+      rgba(24, 17, 11, 0.58) 100%
+    ),
+    url("../assets/textures/bg_field_sky.webp");
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  transition: bottom 0.08s linear;
 }
 
 .subsoil-layer {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(var(--soil-line-y) + 52px);
+  top: calc(var(--soil-line-y) - 6px);
   bottom: 0;
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(255, 224, 186, 0.016) 0px,
-      rgba(255, 224, 186, 0.016) 2px,
-      rgba(0, 0, 0, 0) 2px,
-      rgba(0, 0, 0, 0) 28px
+  background-color: #16100b;
+  background-image:
+    radial-gradient(
+      ellipse 78% 72% at var(--plant-center-x) 28%,
+      rgba(10, 7, 4, 0.14) 0%,
+      rgba(8, 5, 3, 0.56) 100%
     ),
-    linear-gradient(180deg, #19120c 0%, #130d08 45%, #0c0805 100%);
+    linear-gradient(
+      180deg,
+      rgba(16, 11, 7, 0.42) 0%,
+      rgba(14, 10, 6, 0.28) 16%,
+      rgba(10, 7, 4, 0.42) 62%,
+      rgba(6, 4, 2, 0.72) 100%
+    ),
+    url("../assets/textures/bg_chernozem_subsoil.webp");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  transition: top 0.08s linear;
+}
+
+/* Soft organic soil-surface transition lip blending sunlit field earth into cutaway chernozem */
+.horizon-seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--soil-line-y) - 22px);
+  height: 44px;
+  background: linear-gradient(
+    180deg,
+    rgba(28, 21, 13, 0) 0%,
+    rgba(24, 17, 10, 0.48) 38%,
+    rgba(16, 11, 7, 0.76) 54%,
+    rgba(16, 11, 7, 0.24) 76%,
+    rgba(16, 11, 7, 0) 100%
+  );
   transition: top 0.08s linear;
 }
 
